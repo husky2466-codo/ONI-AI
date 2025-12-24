@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "ML Experiment Logger",
+  "description": "Automatically logs machine learning experiments after agent execution, including hyperparameters, metrics, model checkpoints, and progress tracking",
+  "version": "1",
+  "when": {
+    "type": "agentStop"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Check if the recent agent execution involved model training or evaluation. If so, please log the experiment by: 1) Saving hyperparameters and configuration used, 2) Recording performance metrics and results, 3) Updating experiment comparison tables, 4) Checking if this is a new best result, 5) Backing up model checkpoints if performance improved, 6) Updating project progress tracking. Maintain a running log of all experiments for easy comparison."
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "Spec Documentation Sync",
+  "description": "Automatically checks if main README.md and project documentation need updates when files in .kiro/specs/oni-ai/ are modified. Updates project timeline for tasks.md changes, syncs requirements overview for requirements.md changes, updates architecture diagrams for design.md changes, and checks for broken internal links between spec files.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      ".kiro/specs/oni-ai/*"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A file in .kiro/specs/oni-ai/ has been modified. Please analyze the changes and check if the main README.md and project documentation need updates. Specifically:\n\n1. If tasks.md changed: Review if the project timeline in README.md needs updating\n2. If requirements.md changed: Check if the requirements overview in documentation needs syncing\n3. If design.md changed: Verify if architecture diagrams need updating\n4. Check for any broken internal links between spec files\n\nPlease suggest specific documentation updates needed based on the file changes."
+  }
+}

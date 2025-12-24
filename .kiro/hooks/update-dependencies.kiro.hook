@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Update Dependencies",
+  "description": "Manual hook that checks for updates to key packages (PyTorch, Stable Baselines3, etc.), verifies compatibility with DGX Spark environment, tests for breaking changes, updates requirements files, and runs smoke tests",
+  "version": "1",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Help me update project dependencies by:\n1. Check for updates to key packages (PyTorch, Stable Baselines3, etc.) using `pip list --outdated` or similar commands\n2. Verify compatibility with DGX Spark environment requirements\n3. Test that updated packages don't break existing code by running tests\n4. Update requirements.txt and any environment files (conda.yml, environment.yml, etc.)\n5. Run a quick smoke test of core functionality\n6. Alert me to any breaking changes or compatibility issues found during the process\n\nPlease guide me through each step and highlight any potential issues or conflicts."
+  }
+}

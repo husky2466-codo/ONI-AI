@@ -1,0 +1,24 @@
+{
+  "name": "oni-ai",
+  "version": "1.0.0",
+  "description": "An AI agent system capable of playing Oxygen Not Included (ONI), a complex colony simulation game. This project progresses through five phases: data extraction from save files, environment design, baseline model development, reinforcement learning training, and advanced hierarchical planning with LLM integration.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/husky2466-codo/ONI-AI.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/husky2466-codo/ONI-AI/issues"
+  },
+  "homepage": "https://github.com/husky2466-codo/ONI-AI#readme",
+  "dependencies": {
+    "oni-save-parser": "^12.0.0"
+  }
+}

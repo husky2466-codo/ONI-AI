@@ -1,0 +1,17 @@
+{
+  "enabled": true,
+  "name": "Auto Test Runner",
+  "description": "Automatically runs unit tests, property-based tests with Hypothesis, and shows test coverage when Python files in src/ or tests/ directories are saved. Only runs quick tests under 30 seconds to avoid blocking development.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "src/**/*.py",
+      "tests/**/*.py"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "I just saved a Python file. Please run the relevant tests for this file:\n\n1. First, identify if there are unit tests for this specific module and run them\n2. Run any property-based tests using Hypothesis that are related to this file\n3. Generate test coverage report for the modified file\n4. If any tests fail, show me the failure details and suggest specific fixes\n5. Only run tests that complete in under 30 seconds to avoid blocking development\n\nFocus on quick feedback and actionable suggestions for any test failures."
+  }
+}

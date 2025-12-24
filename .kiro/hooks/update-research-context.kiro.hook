@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Update Research Context",
+  "description": "Manually triggered hook that searches for and summarizes recent research developments in RL for games, ONI-specific research, hierarchical planning, and identifies collaboration opportunities",
+  "version": "1",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Search for and summarize the most relevant recent research developments for our project. Focus on: 1) New papers on reinforcement learning for games, 2) ONI-specific research and techniques, 3) Hierarchical planning approaches, 4) Updated baselines or benchmarks in similar domains, 5) Potential collaboration opportunities or useful datasets. Provide a concise summary of the most important findings that could impact or improve our current approach."
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Validate Data Pipeline",
+  "description": "Manual hook to check the health of ONI data processing pipeline including save file parser, export formats, tensor validation, performance testing, and data quality assessment",
+  "version": "1",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Please validate the ONI data pipeline health by performing the following checks:\n\n1. **Save File Parser Validation**: Test the save file parser with sample files to ensure it's working correctly\n2. **Export Format Validation**: Check that data export formats (JSON/NPZ/Parquet) are valid and properly structured\n3. **Tensor Validation**: Validate that tensor shapes and data types match the required specifications\n4. **Performance Testing**: Test data loading performance with the current dataset size and identify any bottlenecks\n5. **Data Quality Assessment**: Check for any data quality issues, corruption, or inconsistencies\n\nAfter completing these checks, provide a comprehensive summary of the pipeline health status and include specific recommended fixes for any issues found. Format the response with clear sections for each validation area and highlight any critical issues that need immediate attention."
+  }
+}

@@ -1,0 +1,10 @@
+Available save data keys: [
+  'header',
+  'templates',
+  'world',
+  'settings',
+  'simData',
+  'version',
+  'gameObjects',
+  'gameData'
+]

@@ -1,0 +1,10 @@
+Found 4 chunks
+First chunk type: object
+First chunk keys: [ '0', '1' ]
+First sub-chunk keys: [ '0', '1' ]
+First sub-chunk type: string
+First sub-chunk keys: [
+  '0', '1', '2',  '3',
+  '4', '5', '6',  '7',
+  '8', '9', '10'
+]

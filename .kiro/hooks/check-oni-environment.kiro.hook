@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Check ONI Environment",
+  "description": "Validates our RL environment setup by testing mini-ONI environment initialization, action/state spaces, reward functions, parallel spawning, and agent interface compatibility",
+  "version": "1",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Please validate our RL environment setup by performing the following checks:\n\n1. Test mini-ONI environment can initialize and run episodes\n2. Verify action space and state representation are working correctly\n3. Check that reward function calculations are reasonable\n4. Test parallel environment spawning functionality\n5. Validate environment-agent interface compatibility\n\nRun any necessary tests or commands to verify each component. Report any issues found with the RL training setup and provide recommendations for fixes."
+  }
+}

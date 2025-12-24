@@ -1,0 +1,91 @@
+{
+  "created_at": "2025-12-24T00:31:58.060705",
+  "num_samples": 10,
+  "spatial_shape": [
+    32,
+    32,
+    7
+  ],
+  "global_features_dim": 64,
+  "preprocessor_config": {
+    "target_size": [
+      32,
+      32
+    ],
+    "temperature_range": [
+      -50.0,
+      200.0
+    ],
+    "max_element_id": 255,
+    "max_building_types": 20
+  },
+  "augmentation_config": {
+    "enable_rotation": true,
+    "enable_cropping": true,
+    "rotation_angles": [
+      90,
+      180
+    ],
+    "crop_ratios": [
+      0.9
+    ],
+    "augmentation_factor": 2
+  },
+  "storage_config": {
+    "metadata_file": "metadata.json",
+    "tensor_file": "tensors.npz",
+    "tabular_file": "features.parquet",
+    "labels_file": "labels.json"
+  },
+  "label_types": [
+    "survival_status",
+    "resource_counts",
+    "duplicant_stress",
+    "infrastructure_score",
+    "cycle_progression",
+    "colony_health"
+  ],
+  "tabular_features": [
+    "sample_id",
+    "source_file",
+    "cycle",
+    "timestamp",
+    "world_height",
+    "world_width",
+    "world_area",
+    "num_duplicants",
+    "avg_duplicant_health",
+    "avg_duplicant_stress",
+    "total_skills",
+    "num_buildings",
+    "operational_buildings",
+    "operational_ratio",
+    "power_buildings",
+    "ventilation_buildings",
+    "living_buildings",
+    "agriculture_buildings",
+    "research_buildings",
+    "storage_buildings",
+    "infrastructure_buildings",
+    "resource_oxygen",
+    "resource_water",
+    "resource_food",
+    "resource_power",
+    "resource_polluted_water",
+    "resource_carbon_dioxide",
+    "resource_algae",
+    "resource_dirt",
+    "resource_sandstone",
+    "resource_copper_ore",
+    "tensor_height",
+    "tensor_width",
+    "tensor_channels",
+    "global_features_dim",
+    "is_mock",
+    "preprocessing_version",
+    "is_augmented",
+    "augmentation_type",
+    "original_index"
+  ],
+  "dataset_version": "1.0"
+}

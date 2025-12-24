@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "ML Training Job Monitor",
+  "description": "Automatically checks the status of running ML training jobs on DGX Spark, reviews logs and metrics, alerts about failures or anomalies, shows performance vs baselines, and suggests next steps",
+  "version": "1",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Check the status of any running ML training jobs by doing the following:\n1. Check for active training processes on DGX Spark\n2. Review the latest training logs and metrics\n3. Alert me to any training failures or anomalies you find\n4. Show current model performance compared to baselines\n5. Suggest next steps if training has completed or failed\nPlease provide a comprehensive status report of all ML training activities."
+  }
+}

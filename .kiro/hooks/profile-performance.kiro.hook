@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Profile Performance",
+  "description": "Analyzes bottlenecks by profiling data loading and preprocessing speed, checking memory usage during training, analyzing GPU utilization on DGX Spark, identifying slow functions in the codebase, comparing current performance to previous benchmarks, and suggesting specific optimizations based on profiling results.",
+  "version": "1",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Perform a comprehensive performance analysis of the codebase:\n\n1. Profile data loading and preprocessing speed - analyze data pipeline bottlenecks\n2. Check memory usage during training - identify memory leaks and inefficient allocations\n3. Analyze GPU utilization on DGX Spark - check for underutilized resources\n4. Identify slow functions in the codebase - profile execution times and hotspots\n5. Compare current performance to previous benchmarks - track performance regressions\n6. Suggest specific optimizations based on profiling results - provide actionable recommendations\n\nUse appropriate profiling tools (cProfile, memory_profiler, nvidia-smi, etc.) and provide detailed analysis with specific optimization suggestions."
+  }
+}

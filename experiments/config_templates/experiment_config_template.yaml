@@ -1,0 +1,95 @@
+# ONI AI Agent - Experiment Configuration Template
+# Copy and modify this template for each experiment
+
+experiment:
+  id: "YYYY-MM-DD-HH-MM-SS"  # Auto-generated timestamp
+  name: "descriptive_experiment_name"
+  phase: 1  # 1=Data, 2=Environment, 3=Baselines, 4=RL, 5=Advanced
+  model_type: "CNN"  # CNN/Heuristic/PPO/DQN/A2C/Hierarchical/LLM
+  objective: "Brief description of what this experiment tests"
+  
+# Hardware Configuration
+hardware:
+  device: "DGX_Spark"
+  gpu_count: 1
+  parallel_envs: 16  # For RL training
+  batch_size: 256
+  memory_limit: "32GB"
+
+# Model Architecture (varies by model type)
+model:
+  # For CNN models
+  backbone: "resnet18"
+  input_channels: 8
+  output_classes: 200
+  hidden_dims: [512, 256, 128]
+  
+  # For RL models
+  policy_network:
+    type: "CNN"
+    features: [64, 128, 256]
+  value_network:
+    type: "MLP" 
+    hidden_dims: [512, 256]
+
+# Training Configuration
+training:
+  # General
+  epochs: 100
+  learning_rate: 3e-4
+  optimizer: "Adam"
+  scheduler: "cosine_annealing"
+  
+  # RL specific
+  algorithm: "PPO"  # PPO/A2C/DQN
+  clip_ratio: 0.2
+  gae_lambda: 0.95
+  entropy_coef: 0.01
+  value_loss_coef: 0.5
+  
+  # Supervised specific
+  loss_function: "cross_entropy"
+  validation_split: 0.2
+  early_stopping_patience: 10
+
+# Data Configuration
+data:
+  dataset_path: "data/ml_ready/"
+  save_files_count: 1000
+  augmentation:
+    rotation: true
+    cropping: true
+    noise_injection: false
+  
+  # Environment specific
+  map_size: [64, 64]
+  max_cycles: 100
+  building_types: 15
+
+# Evaluation Configuration
+evaluation:
+  metrics:
+    - "survival_rate"
+    - "resource_efficiency" 
+    - "duplicant_happiness"
+    - "oxygen_maintenance"
+  benchmark_scenarios:
+    - "standard_start"
+    - "resource_crisis"
+    - "temperature_challenge"
+  evaluation_frequency: 10  # epochs
+
+# Logging Configuration
+logging:
+  tensorboard: true
+  wandb: false  # Optional Weights & Biases
+  checkpoint_frequency: 5  # epochs
+  log_level: "INFO"
+  save_best_only: true
+
+# Experiment Tracking
+tracking:
+  tags: ["phase1", "baseline", "cnn"]
+  notes: "Additional experiment notes and hypotheses"
+  expected_duration: "2 hours"
+  success_criteria: "Achieve >80% parsing accuracy"

@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "Python Code Quality Checker",
+  "description": "Automatically runs comprehensive code quality checks and fixes when any Python file is saved, including syntax errors, linting, import organization, code formatting, type hints validation, and docstring completeness",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "*.py"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "I just saved a Python file. Please run comprehensive code quality checks and fix common issues. Check for: 1) Syntax errors and basic linting using flake8 or pylint, 2) Import organization and unused imports using isort and autoflake, 3) Code formatting with black or autopep8, 4) Type hints validation using mypy, 5) Docstring completeness for functions and classes. Show me a summary of any issues found and auto-fix what you can. Run the appropriate commands and apply fixes directly to the file."
+  }
+}

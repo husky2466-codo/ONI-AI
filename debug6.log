@@ -1,0 +1,19 @@
+Available save data keys: [
+  'header',
+  'templates',
+  'world',
+  'settings',
+  'simData',
+  'version',
+  'gameObjects',
+  'gameData'
+]
+World keys: [
+  'WidthInCells',
+  'HeightInCells',
+  'streamed',
+  'clusterID',
+  'requiredMods',
+  'active_mods'
+]
+World.streamed keys: [ '0', '1', '2', '3' ]
