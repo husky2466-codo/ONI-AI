@@ -48,7 +48,7 @@
 - [x] Create essential building type restrictions (10-15 types)
 - [x] Set time horizon limits (100 cycles maximum)
 - [x] Design environment reset and initialization
-- [-] **Estimated Time**: 2 weeks
+- [x] **Estimated Time**: 2 weeks
 
 ### Task 2.2: Objective System
 - [x] Implement primary objective: oxygen maintenance (>500g/tile)
@@ -59,107 +59,107 @@
 - [x] **Estimated Time**: 1 week
 
 ### Task 2.3: Action Space Design
-- [ ] Implement high-level action types:
-  - [ ] `PlaceBuildingAction(building_type, region)`
-  - [ ] `DigAction(region, material_type)`
-  - [ ] `PriorityAction(task_type, priority_level)`
-  - [ ] `DuplicantAction(duplicant_id, skill_assignment)`
-- [ ] Create action validation and masking
-- [ ] Limit action space to ~200 discrete actions
-- [ ] Implement action parameter encoding
-- [ ] **Estimated Time**: 1-2 weeks
+- [x] Implement high-level action types:
+  - [x] `PlaceBuildingAction(building_type, region)`
+  - [x] `DigAction(region, material_type)`
+  - [x] `PriorityAction(task_type, priority_level)`
+  - [x] `DuplicantAction(duplicant_id, skill_assignment)`
+- [x] Create action validation and masking
+- [x] Limit action space to ~200 discrete actions
+- [x] Implement action parameter encoding
+- [x] **Estimated Time**: 1-2 weeks
 
 ### Task 2.4: State Representation
-- [ ] Design downscaled 32x32 multi-channel tensor format
-- [ ] Implement global features vector (64 dimensions)
-- [ ] Create attention mechanism for critical areas
-- [ ] Add state normalization and preprocessing
-- [ ] Implement state validation checks
+- [x] Design downscaled 32x32 multi-channel tensor format
+- [x] Implement global features vector (64 dimensions)
+- [x] Create attention mechanism for critical areas
+- [x] Add state normalization and preprocessing
+- [x] Implement state validation checks
 - [ ] **Estimated Time**: 1 week
 
 ## Phase 3: Baseline Models
 
 ### Task 3.1: Supervised CNN Model
-- [ ] Implement ResNet-18 backbone with custom head
-- [ ] Design input processing for 32x32x8 state tensor
-- [ ] Create output layer for building placement probabilities
-- [ ] Implement cross-entropy loss for human placement decisions
-- [ ] Add spatial data augmentation pipeline
-- [ ] Create training loop with validation
+- [x] Implement ResNet-18 backbone with custom head
+- [x] Design input processing for 32x32x8 state tensor
+- [x] Create output layer for building placement probabilities
+- [x] Implement cross-entropy loss for human placement decisions
+- [x] Add spatial data augmentation pipeline
+- [x] Create training loop with validation
 - [ ] **Estimated Time**: 1-2 weeks
 
 ### Task 3.2: Heuristic Bot Implementation
-- [ ] Design rule engine with priority-based decisions
-- [ ] Implement problem detection systems:
-  - [ ] Oxygen level monitoring
-  - [ ] Temperature threshold detection
-  - [ ] Facility requirement checking
-  - [ ] Food shortage detection
-- [ ] Create template system for room layouts
-- [ ] Implement hierarchical decision tree
-- [ ] Add conflict resolution mechanisms
-- [ ] **Estimated Time**: 2-3 weeks
+- [x] Design rule engine with priority-based decisions
+- [x] Implement problem detection systems:
+  - [x] Oxygen level monitoring
+  - [x] Temperature threshold detection
+  - [x] Facility requirement checking
+  - [x] Food shortage detection
+- [x] Create template system for room layouts
+- [x] Implement hierarchical decision tree
+- [x] Add conflict resolution mechanisms
+- [x] **Estimated Time**: 2-3 weeks
 
 ### Task 3.3: Imitation Learning Pipeline
-- [ ] Implement behavioral cloning model
-- [ ] Create state-action pair collection from heuristic bot
-- [ ] Design DAgger algorithm for iterative improvement
-- [ ] Implement loss functions (cross-entropy, MSE)
-- [ ] Create training and evaluation loops
-- [ ] Add performance comparison metrics
+- [x] Implement behavioral cloning model
+- [x] Create state-action pair collection from heuristic bot
+- [x] Design DAgger algorithm for iterative improvement
+- [x] Implement loss functions (cross-entropy, MSE)
+- [x] Create training and evaluation loops
+- [x] Add performance comparison metrics
 - [ ] **Estimated Time**: 1-2 weeks
 
 ## Phase 4: RL Training Environment
 
 ### Task 4.1: Gym Environment Wrapper
-- [ ] Implement standard OpenAI Gym API:
-  - [ ] `step(action) -> (observation, reward, done, info)`
-  - [ ] `reset() -> observation`
-  - [ ] `render(mode='human') -> None`
-- [ ] Choose implementation approach:
-  - [ ] Option A: Custom ONI simulator (preferred)
+- [x] Implement standard OpenAI Gym API:
+  - [x] `step(action) -> (observation, reward, done, info)`
+  - [x] `reset() -> observation`
+  - [x] `render(mode='human') -> None`
+- [x] Choose implementation approach:
+  - [x] Option A: Custom ONI simulator (preferred)
   - [ ] Option B: C# mod with file communication
-- [ ] Create parallel environment support (16-32 environments)
-- [ ] Add environment monitoring and logging
-- [ ] **Estimated Time**: 3-4 weeks
+- [x] Create parallel environment support (16-32 environments)
+- [x] Add environment monitoring and logging
+- [x] **Estimated Time**: 3-4 weeks
 
 ### Task 4.2: PPO Agent Implementation
-- [ ] Set up Stable Baselines3 with PyTorch backend
-- [ ] Design network architecture:
-  - [ ] CNN feature extractor
-  - [ ] Policy network with MLP head
-  - [ ] Value network with shared features
-- [ ] Configure hyperparameters:
-  - [ ] Learning rate: 3e-4 with cosine annealing
-  - [ ] Batch size: 256
-  - [ ] PPO clip ratio: 0.2
-  - [ ] GAE lambda: 0.95
-  - [ ] Entropy coefficient: 0.01
-- [ ] Implement training loop with checkpointing
-- [ ] **Estimated Time**: 2 weeks
+- [x] Set up Stable Baselines3 with PyTorch backend
+- [x] Design network architecture:
+  - [x] CNN feature extractor
+  - [x] Policy network with MLP head
+  - [x] Value network with shared features
+- [x] Configure hyperparameters:
+  - [x] Learning rate: 3e-4 with cosine annealing
+  - [x] Batch size: 256
+  - [x] PPO clip ratio: 0.2
+  - [x] GAE lambda: 0.95
+  - [x] Entropy coefficient: 0.01
+- [x] Implement training loop with checkpointing
+- [x] **Estimated Time**: 2 weeks
 
 ### Task 4.3: Reward System Design
-- [ ] Implement dense rewards (per step):
-  - [ ] +0.1 per tile with breathable oxygen
-  - [ ] +0.05 per happy duplicant
-  - [ ] +0.02 per unit of stored resources
-  - [ ] -0.1 per dangerous temperature tile
-- [ ] Add sparse rewards (episodic):
-  - [ ] +100 for 100-cycle survival
-  - [ ] -50 for duplicant death
-  - [ ] +20 for infrastructure milestones
-- [ ] Implement potential-based reward shaping
-- [ ] **Estimated Time**: 1 week
+- [x] Implement dense rewards (per step):
+  - [x] +0.1 per tile with breathable oxygen
+  - [x] +0.05 per happy duplicant
+  - [x] +0.02 per unit of stored resources
+  - [x] -0.1 per dangerous temperature tile
+- [x] Add sparse rewards (episodic):
+  - [x] +100 for 100-cycle survival
+  - [x] -50 for duplicant death
+  - [x] +20 for infrastructure milestones
+- [x] Implement potential-based reward shaping
+- [x] **Estimated Time**: 1 week → **Status**: Complete
 
 ## Phase 5: Advanced Representations
 
 ### Task 5.1: Hierarchical Planning Architecture
-- [ ] Design high-level planner for abstract goals
-- [ ] Implement mid-level controller for goal decomposition
-- [ ] Create low-level executor for precise actions
-- [ ] Design goal embedding communication system
-- [ ] Add hierarchical coordination mechanisms
-- [ ] **Estimated Time**: 3-4 weeks
+- [x] Design high-level planner for abstract goals
+- [x] Implement mid-level controller for goal decomposition
+- [x] Create low-level executor for precise actions
+- [x] Design goal embedding communication system
+- [x] Add hierarchical coordination mechanisms
+- [x] **Estimated Time**: 3-4 weeks → **Status**: Complete
 
 ### Task 5.2: LLM Integration
 - [ ] Set up local LLM deployment (Code Llama 7B)
