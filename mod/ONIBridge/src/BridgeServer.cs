@@ -34,9 +34,9 @@ namespace ONIBridge
         private readonly ConcurrentQueue<byte[]> _sendQueue = new ConcurrentQueue<byte[]>();
         private bool _running = false;
 
-        // Drop outbound messages if queue grows beyond this — prevents unbounded
-        // memory growth when the Python side is slow/disconnected.
-        private const int MaxSendQueueDepth = 10;
+        // State messages are evicted (oldest dropped) when queue exceeds this depth.
+        // Acks are never dropped — they are small and infrequent.
+        private const int MaxStateQueueDepth = 3;
 
         public bool IsConnected => _connectedClient?.Connected == true;
 
@@ -86,11 +86,10 @@ namespace ONIBridge
         public void SendState(object statePayload)
         {
             if (_connectedClient?.Connected != true) return;
-            if (_sendQueue.Count >= MaxSendQueueDepth)
-            {
-                Debug.LogWarning("[ONIBridge] Send queue full — dropping state message");
-                return;
-            }
+            // Evict oldest state messages to keep only the freshest few.
+            // The Python runner always wants the latest state — stale ones are noise.
+            while (_sendQueue.Count >= MaxStateQueueDepth)
+                _sendQueue.TryDequeue(out _);
             var msg = JsonConvert.SerializeObject(new { type = "state", data = statePayload });
             _sendQueue.Enqueue(Encoding.UTF8.GetBytes(msg + "\n"));
         }
