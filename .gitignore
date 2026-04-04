@@ -64,3 +64,7 @@ docs/*.jpeg
 docs/*.webp
 docs/Screenshot*
 docs/signal-*
+
+# ONI wiki database (built locally via scripts/build_wiki_db.py)
+data/wiki.db
+data/*.db
