@@ -3,7 +3,7 @@ import os
 import sqlite3
 import pytest
 from unittest.mock import patch, MagicMock
-from src.agent.llm import _format_state, _summarize_tiles, GeminiAgent
+from src.agent.llm import _format_state, _summarize_tiles, LLMAgent
 
 
 def _make_state(**overrides):
@@ -73,7 +73,7 @@ def _make_wiki_db(tmp_path: str) -> str:
 
 def test_search_wiki_returns_results(tmp_path):
     db_path = _make_wiki_db(str(tmp_path))
-    agent = GeminiAgent.__new__(GeminiAgent)
+    agent = LLMAgent.__new__(LLMAgent)
     agent._wiki_db = db_path
     result = agent._search_wiki("generator")
     assert "Manual Generator" in result
@@ -81,7 +81,7 @@ def test_search_wiki_returns_results(tmp_path):
 
 
 def test_search_wiki_no_db_returns_fallback():
-    agent = GeminiAgent.__new__(GeminiAgent)
+    agent = LLMAgent.__new__(LLMAgent)
     agent._wiki_db = "/nonexistent/wiki.db"
     result = agent._search_wiki("anything")
     assert "not available" in result.lower()
@@ -89,7 +89,7 @@ def test_search_wiki_no_db_returns_fallback():
 
 def test_search_wiki_no_results(tmp_path):
     db_path = _make_wiki_db(str(tmp_path))
-    agent = GeminiAgent.__new__(GeminiAgent)
+    agent = LLMAgent.__new__(LLMAgent)
     agent._wiki_db = db_path
     result = agent._search_wiki("xyzzy nonexistent query zzz")
     assert "No results" in result

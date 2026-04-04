@@ -2,8 +2,8 @@
 """
 LLM inference layer for the ONI AI agent.
 
-Converts a state snapshot dict into a Gemini prompt, calls the API,
-and decodes the response into a valid ActionCommand dict.
+Converts a state snapshot dict into a prompt, calls any OpenAI-compatible
+endpoint, and decodes the response into a valid ActionCommand dict.
 Falls back to no_op on any parse or API failure.
 """
 from __future__ import annotations
@@ -14,21 +14,22 @@ import sqlite3 as _sqlite3
 from pathlib import Path
 from typing import Any
 
-from google import genai
-from google.genai import types
+from openai import OpenAI
 
 from src.agent.protocol import VALID_ACTIONS, build_action, build_no_op
 
 logger = logging.getLogger(__name__)
 
-MODEL = "gemini-2.5-flash"
+DEFAULT_ENDPOINT = "http://10.0.0.69:8000/v1"
+DEFAULT_MODEL    = "Qwen/Qwen2.5-72B-Instruct-AWQ"
 
 SYSTEM_PROMPT = """You are an autonomous colony manager for the game Oxygen Not Included (ONI).
 Your job is to keep duplicants alive and the colony growing.
 
 ## Map & coordinates
-- 2D grid map. Duplicants start near center (~x=120, y=200 on a standard Sandstone map).
-- Y increases upward. Tiles must be DUG before buildings can be placed in them.
+- 2D grid map. Y increases upward. Tiles must be DUG before buildings can be placed in them.
+- Duplicant positions are shown in the state. Use their actual (x, y) coordinates to determine where open space is — do NOT assume fixed spawn coordinates.
+- Place perimeters in open or diggable space AT or ABOVE the y-level where duplicants are standing. Never place a perimeter below the dupes' floor — they cannot path down through solid ground.
 - The buildings list in state shows only COMPLETED buildings — queued/under-construction are invisible to you.
 - power_kw = currently active generation. 0 is normal on cycle 1.
 - oxygen_kg = free gaseous O2. Near-zero on cycle 1-2 is normal — algae hasn't been processed yet.
@@ -283,16 +284,19 @@ def _summarize_tiles(tiles: dict) -> "str | None":
     return f"Tile window: x={x} y={y} w={w} h={h} ({total} tiles) | top elements: {top_str}"
 
 
-# Gemini 2.5 Flash pricing (per million tokens, as of 2026-04)
-_COST_INPUT_PER_M  = 0.15   # $0.15 / 1M input tokens
-_COST_OUTPUT_PER_M = 0.60   # $0.60 / 1M output tokens
+class LLMAgent:
+    """Calls any OpenAI-compatible LLM endpoint to decide the next ONI action."""
 
-
-class GeminiAgent:
-    """Calls Gemini Flash to decide the next ONI action given a state snapshot."""
-
-    def __init__(self, api_key: str, model: str = MODEL):
-        self._client = genai.Client(api_key=api_key)
+    def __init__(
+        self,
+        endpoint_url: str = DEFAULT_ENDPOINT,
+        model: str = DEFAULT_MODEL,
+        api_key: str = "nokeyneeded",
+    ):
+        self._client = OpenAI(
+            base_url=endpoint_url,
+            api_key=api_key or "nokeyneeded",
+        )
         self._model = model
         self.total_input_tokens  = 0
         self.total_output_tokens = 0
@@ -309,94 +313,48 @@ class GeminiAgent:
             "cost_usd":      round(self.total_cost_usd, 6),
         }
 
-    def decide(self, state_data: dict[str, Any], pending_action: "dict | None" = None, ledger_context: str = "", colony_health: str = "") -> dict[str, Any]:
+    def decide(
+        self,
+        state_data: dict[str, Any],
+        pending_action: "dict | None" = None,
+        ledger_context: str = "",
+        colony_health: str = "",
+    ) -> dict[str, Any]:
         """
         Given a state snapshot dict, return an ActionCommand dict.
-        Gemini may call search_wiki() up to 2 times before returning its action.
         Falls back to no_op on any failure.
         """
-        from google.genai import types as _types
-
-        search_wiki_fn = _types.FunctionDeclaration(
-            name="search_wiki",
-            description=(
-                "Search the ONI wiki for game data: building stats, element properties, "
-                "food recipes, or research costs. Use this when you need to look up "
-                "a building's power draw, inputs, outputs, or size before placing it."
-            ),
-            parameters=_types.Schema(
-                type=_types.Type.OBJECT,
-                properties={"query": _types.Schema(type=_types.Type.STRING)},
-                required=["query"],
-            ),
+        prompt = _format_state(
+            state_data,
+            pending_action=pending_action,
+            ledger_context=ledger_context,
+            colony_health=colony_health,
         )
-        tool = _types.Tool(function_declarations=[search_wiki_fn])
-
-        prompt = _format_state(state_data, pending_action=pending_action, ledger_context=ledger_context, colony_health=colony_health)
-        contents = [prompt]
-        max_wiki_calls = 2
-        wiki_calls = 0
 
         try:
-            while True:
-                response = self._client.models.generate_content(
-                    model=self._model,
-                    contents=contents,
-                    config=_types.GenerateContentConfig(
-                        system_instruction=SYSTEM_PROMPT,
-                        temperature=0.2,
-                        max_output_tokens=1024,
-                        thinking_config=_types.ThinkingConfig(thinking_budget=0),
-                        tools=[tool],
-                    ),
-                )
+            response = self._client.chat.completions.create(
+                model=self._model,
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user",   "content": prompt},
+                ],
+                temperature=0.2,
+                max_tokens=512,
+            )
 
-                # Track token usage and cost
-                usage = response.usage_metadata
-                if usage:
-                    inp = usage.prompt_token_count or 0
-                    out = usage.candidates_token_count or 0
-                    self.total_input_tokens  += inp
-                    self.total_output_tokens += out
-                    self.total_calls         += 1
-                    self.total_cost_usd += (inp / 1_000_000) * _COST_INPUT_PER_M
-                    self.total_cost_usd += (out / 1_000_000) * _COST_OUTPUT_PER_M
+            usage = response.usage
+            if usage:
+                self.total_input_tokens  += usage.prompt_tokens or 0
+                self.total_output_tokens += usage.completion_tokens or 0
+                self.total_calls         += 1
 
-                # Check for function call
-                candidate = response.candidates[0] if response.candidates else None
-                fn_call = None
-                if candidate and candidate.content and candidate.content.parts:
-                    for part in candidate.content.parts:
-                        if hasattr(part, "function_call") and part.function_call:
-                            fn_call = part.function_call
-                            break
-
-                if fn_call and fn_call.name == "search_wiki" and wiki_calls >= max_wiki_calls:
-                    logger.warning("Wiki call limit (%d) reached; ignoring further tool calls", max_wiki_calls)
-
-                if fn_call and fn_call.name == "search_wiki" and wiki_calls < max_wiki_calls:
-                    query = fn_call.args.get("query", "")
-                    logger.info("  -> Gemini wiki call: %r", query)
-                    wiki_result = self._search_wiki(query)
-                    wiki_calls += 1
-
-                    # Append assistant turn + function response to contents
-                    contents.append(candidate.content)
-                    contents.append(_types.Content(parts=[
-                        _types.Part(function_response=_types.FunctionResponse(
-                            name="search_wiki",
-                            response={"result": wiki_result},
-                        ))
-                    ]))
-                    continue  # loop again with wiki result in context
-
-                # No function call — parse the action text
-                raw = response.text.strip() if response.text else ""
-                logger.debug("Gemini raw response: %s", raw)
-                return self._parse_action(raw)
+            raw = response.choices[0].message.content or ""
+            raw = raw.strip()
+            logger.debug("LLM raw response: %s", raw)
+            return self._parse_action(raw)
 
         except Exception as e:
-            logger.warning("Gemini call failed: %s — sending no_op", e)
+            logger.warning("LLM call failed: %s — sending no_op", e)
             return build_no_op()
 
     def _parse_action(self, raw: str) -> dict[str, Any]:

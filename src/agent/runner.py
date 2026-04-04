@@ -32,7 +32,7 @@ import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
 from src.agent.client import BridgeClient
-from src.agent.llm import GeminiAgent
+from src.agent.llm import LLMAgent, DEFAULT_ENDPOINT, DEFAULT_MODEL
 from src.agent.perimeter import SpatialLedger
 from src.agent.protocol import build_abandon_perimeter, build_no_op
 from src.agent.reload import CANONICAL_SAVE, EpisodeReloader
@@ -239,11 +239,13 @@ _DEDUP_TTL = 5  # suppress identical AI actions for this many ticks
 async def run(
     host: str,
     port: int,
+    endpoint_url: str,
+    model: str,
     api_key: str,
     episode_log: Path | None,
     reloader: EpisodeReloader | None = None,
 ) -> None:
-    agent = GeminiAgent(api_key=api_key)
+    agent = LLMAgent(endpoint_url=endpoint_url, model=model, api_key=api_key)
 
     while True:
         client = BridgeClient(host=host, port=port)
@@ -443,21 +445,22 @@ async def run(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="ONI Gemini agent runner + WebSocket relay")
+    parser = argparse.ArgumentParser(description="ONI AI agent runner + WebSocket relay")
     parser.add_argument("--host",    default="10.0.0.10",  help="Game bridge host")
     parser.add_argument("--port",    type=int, default=9999, help="Game bridge port")
     parser.add_argument("--relay-port", type=int, default=RELAY_PORT,
                         help="WebSocket relay port for dashboard (default 8182)")
+    parser.add_argument("--endpoint", default=DEFAULT_ENDPOINT,
+                        help="OpenAI-compatible LLM endpoint URL")
+    parser.add_argument("--model", default=DEFAULT_MODEL,
+                        help="Model name to use")
     parser.add_argument("--api-key", default=os.environ.get("GOOGLE_API_KEY", ""),
-                        help="Google API key (or set GOOGLE_API_KEY env var)")
+                        help="API key (optional for local endpoints)")
     parser.add_argument("--log-episode", default=None,
                         help="Path to write episode JSONL log, or 'auto' for data/episodes/ auto-naming")
     parser.add_argument("--save", default=CANONICAL_SAVE, help="Save path for episode resets")
     parser.add_argument("--auto-reload", action="store_true", help="Enable automatic episode reloading")
     args = parser.parse_args()
-
-    if not args.api_key:
-        parser.error("--api-key is required (or set GOOGLE_API_KEY env var)")
 
     episode_log = Path(args.log_episode) if args.log_episode else None
     if args.log_episode == "auto":
@@ -477,7 +480,7 @@ def main() -> None:
         server = uvicorn.Server(config)
         relay_task = asyncio.create_task(server.serve())
         agent_task = asyncio.create_task(
-            run(args.host, args.port, args.api_key, episode_log, reloader)
+            run(args.host, args.port, args.endpoint, args.model, args.api_key, episode_log, reloader)
         )
         # Run both; if agent loop exits, cancel the relay
         done, pending = await asyncio.wait(

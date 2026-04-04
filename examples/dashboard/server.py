@@ -100,14 +100,25 @@ def _build_runner_cmd() -> list[str]:
         "--host", _GAME_CONFIG["host"],
         "--port", str(_GAME_CONFIG["port"]),
         "--log-episode", "episodes/run1.json",
+        "--auto-reload",
     ]
     if profile:
-        cmd += ["--endpoint", profile.get("endpoint_url", "")]
-        cmd += ["--model", profile.get("model", "")]
-        if profile.get("api_key"):
-            cmd += ["--api-key", profile["api_key"]]
+        endpoint = profile.get("endpoint_url", "")
+        model = profile.get("model", "")
+        api_key = profile.get("api_key", "") or os.environ.get("GOOGLE_API_KEY", "")
+        if endpoint:
+            cmd += ["--endpoint", endpoint]
+        if model:
+            cmd += ["--model", model]
+        if api_key:
+            cmd += ["--api-key", api_key]
         if profile.get("vision_enabled"):
             cmd += ["--vision"]
+    else:
+        # No profile — fall back to env var so the Start button still works
+        api_key = os.environ.get("GOOGLE_API_KEY", "")
+        if api_key:
+            cmd += ["--api-key", api_key]
     return cmd
 
 
