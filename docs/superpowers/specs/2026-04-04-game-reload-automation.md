@@ -167,8 +167,15 @@ AUTOLOAD_CONFIG  = (
     "Oxygen Not Included/mods/Dev/ONIBridge/autoload.txt"
 )
 
-# Canonical training save — update with actual filename after first session
-CANONICAL_SAVE   = f"{SAVE_FILES_DIR}/training-start.sav"
+# Save file format (Spaced Out DLC):
+#   save_files/{colony-name}/{colony-name}.sav   ← main save
+#   save_files/{colony-name}/{colony-name}.png   ← preview screenshot
+#   save_files/{colony-name}/auto_save/          ← auto-saves
+#
+# SaveLoader.Instance.Load() takes the path to the .sav file directly.
+# Canonical training save — update colony name after creating the training save:
+CANONICAL_COLONY = "training-start"
+CANONICAL_SAVE   = f"{SAVE_FILES_DIR}/{CANONICAL_COLONY}/{CANONICAL_COLONY}.sav"
 
 
 @dataclass
@@ -320,26 +327,39 @@ async def _on_episode_end(self, reason: str):
 
 ## Part 3: Canonical Save Setup
 
-Before automated training can run, a canonical training save must exist at the expected
-path. Steps:
+**Confirmed save file format (Spaced Out DLC):**
+Each colony is stored as a directory containing `{colony-name}.sav` and
+`{colony-name}.png`. Example from the live game host:
+```
+save_files/
+  Bob-CV1/
+    Bob-CV1.sav     ← 1.3MB actual save
+    Bob-CV1.png     ← 1.7MB preview screenshot
+    auto_save/      ← rolling auto-saves
+  Bob-Colony/
+    ...
+```
+
+**Creating the canonical training save:**
 
 1. Start a fresh game on the canonical seed: `v-sndst-c-1427943156-0-1a-j3et5`
-2. Let it load to the first playable tick (cycle 1, dupes just spawned)
-3. Immediately save the game (`Ctrl+S` or via game menu)
-4. On the Linux desktop, locate the save file:
+2. When naming the colony, use exactly: **`training-start`**
+   (this makes the path predictable: `save_files/training-start/training-start.sav`)
+3. Let it reach cycle 1 with dupes spawned — do not issue any commands
+4. Save immediately (`Ctrl+S`)
+5. Verify on the Linux desktop:
    ```bash
-   ls -lt ~/.config/unity3d/Klei/Oxygen\ Not\ Included/save_files/
+   ls -lh ~/.config/unity3d/Klei/Oxygen\ Not\ Included/save_files/training-start/
+   # Expected:
+   # training-start.sav
+   # training-start.png
    ```
-   The most recently modified file is the one just saved.
-5. Copy it to a stable filename the runner can always find:
-   ```bash
-   cp "save_files/[colony-name] Cycle 1.sav" "save_files/training-start.sav"
-   ```
-6. Update `CANONICAL_SAVE` in `reload.py` to point to this path.
+6. `CANONICAL_SAVE` in `reload.py` is pre-set to this path — no update needed if
+   the colony is named exactly `training-start`
 
-**Why a stable filename matters:** ONI's autosave appends cycle numbers to save names.
-Using a fixed `training-start.sav` means the runner always knows exactly which file to
-load, regardless of what autosaves exist.
+**Why a fixed colony name matters:** ONI auto-saves inside the colony directory using
+the colony name as the filename. Using a predictable colony name means `reload.py`
+never needs updating — the path is deterministic from day one.
 
 ---
 
