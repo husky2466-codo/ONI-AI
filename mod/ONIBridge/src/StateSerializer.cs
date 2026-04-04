@@ -70,7 +70,9 @@ namespace ONIBridge
             var rt = RationTracker.Get();
             if (rt != null) foodConsumed = rt.GetAmountConsumed();
 
-            // Sum wattage across all active generators using Components.Generators
+            // Sum rated wattage across all active generators.
+            // Note: WattageRating is nameplate capacity, not real-time output.
+            // A generator running below rated capacity (e.g. low fuel) will overstate actual power.
             float powerWatts = 0f;
             if (Components.Generators != null)
             {
@@ -85,6 +87,8 @@ namespace ONIBridge
             {
                 oxygen_kg         = oxygen       / 1000f,
                 water_kg          = water        / 1000f,
+                // food_kcal_today: calories consumed today, NOT food in storage.
+                // RationTracker has no "remaining food" API; use buildings[] for storage buildings.
                 food_kcal_today   = foodConsumed,
                 power_kw          = powerWatts   / 1000f,
                 co2_kg            = co2          / 1000f,
@@ -166,7 +170,9 @@ namespace ONIBridge
                 if (diag?.LatestResult == null) continue;
 
                 var opinion = diag.LatestResult.opinion;
-                // Report anything Bad or worse (DuplicantThreatening ranks below Bad in severity)
+                // Report Bad and DuplicantThreatening (most severe).
+                // Opinion ordering (least to most severe): Good, Normal, Acceptable, Warning, Bad, DuplicantThreatening.
+                // Good/Normal/Acceptable/Warning are intentionally excluded as non-alert-worthy.
                 if (opinion == ColonyDiagnostic.DiagnosticResult.Opinion.Bad ||
                     opinion == ColonyDiagnostic.DiagnosticResult.Opinion.DuplicantThreatening)
                 {
