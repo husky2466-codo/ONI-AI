@@ -88,9 +88,10 @@ class EpisodeReloader:
             return ReloadResult(success=False, elapsed_s=elapsed, error=str(e))
 
     async def _write_autoload(self, conn: asyncssh.SSHClientConnection) -> None:
-        """Write the save path to autoload.txt on the game host."""
-        escaped = self.save_path.replace("'", "'\"'\"'")
-        await conn.run(f"printf '%s' '{escaped}' > '{AUTOLOAD_CONFIG}'")
+        """Write the save path to autoload.txt on the game host via SFTP."""
+        async with conn.start_sftp_client() as sftp:
+            async with await sftp.open(AUTOLOAD_CONFIG, "w") as f:
+                await f.write(self.save_path)
 
     async def _quit_game(self, conn: asyncssh.SSHClientConnection) -> bool:
         """Attempt graceful quit via xdotool Alt+F4. Returns True if window was found."""
@@ -143,21 +144,24 @@ class EpisodeReloader:
         """
         deadline = time.monotonic() + timeout_s
         while time.monotonic() < deadline:
+            writer = None
             try:
                 reader, writer = await asyncio.wait_for(
                     asyncio.open_connection(GAME_HOST, BRIDGE_PORT),
                     timeout=3.0,
                 )
                 line = await asyncio.wait_for(reader.readline(), timeout=10.0)
-                writer.close()
-                try:
-                    await writer.wait_closed()
-                except Exception:
-                    pass
                 if b'"type"' in line and b'"state"' in line:
                     return
             except (ConnectionRefusedError, asyncio.TimeoutError, OSError):
                 pass
+            finally:
+                if writer is not None:
+                    writer.close()
+                    try:
+                        await writer.wait_closed()
+                    except Exception:
+                        pass
             await asyncio.sleep(poll_interval_s)
         raise TimeoutError(
             f"ONIBridge did not come up within {timeout_s}s after game launch"

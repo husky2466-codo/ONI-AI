@@ -12,12 +12,9 @@ namespace ONIBridge
     public class BridgeTicker : MonoBehaviour
     {
         private const float STATE_INTERVAL_SECONDS = 1.0f;
+        // Instance field (not static): resets automatically when the GameObject is destroyed
+        // and recreated on game restart — no manual OnDestroy reset needed.
         private bool _autoloadAttempted = false;
-
-        private void OnDestroy()
-        {
-            _autoloadAttempted = false;
-        }
 
         private IEnumerator Start()
         {

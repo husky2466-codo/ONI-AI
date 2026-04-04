@@ -72,3 +72,30 @@ class TestEpisodeReloaderReset:
         ):
             # Should complete without raising
             await reloader._wait_for_bridge_ready(timeout_s=5, poll_interval_s=0.1)
+
+    @pytest.mark.asyncio
+    async def test_write_autoload_uses_sftp_not_shell(self):
+        """_write_autoload should write via SFTP, not a shell command."""
+        reloader = EpisodeReloader(save_path="/path/with 'quotes' and spaces/save.sav")
+
+        mock_sftp = AsyncMock()
+        mock_file = AsyncMock()
+        mock_sftp.open = AsyncMock(return_value=mock_file)
+        mock_file.__aenter__ = AsyncMock(return_value=mock_file)
+        mock_file.__aexit__ = AsyncMock(return_value=False)
+        mock_file.write = AsyncMock()
+
+        mock_conn = AsyncMock()
+        mock_conn.start_sftp_client = MagicMock(return_value=AsyncMock(
+            __aenter__=AsyncMock(return_value=mock_sftp),
+            __aexit__=AsyncMock(return_value=False),
+        ))
+
+        await reloader._write_autoload(mock_conn)
+
+        mock_sftp.open.assert_called_once_with(
+            "/home/myroproductions/.config/unity3d/Klei/"
+            "Oxygen Not Included/mods/Dev/ONIBridge/autoload.txt",
+            "w",
+        )
+        mock_file.write.assert_called_once_with("/path/with 'quotes' and spaces/save.sav")
