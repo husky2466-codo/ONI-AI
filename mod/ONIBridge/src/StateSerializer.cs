@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Klei.AI;
 using UnityEngine;
 
 namespace ONIBridge
@@ -161,58 +162,79 @@ namespace ONIBridge
                     catch { /* task location unavailable */ }
                 }
 
-                // --- Skills (attribute levels) ---
-                // DECOMPILE NOTE: Attributes component name may differ — verify vs Assembly-CSharp.dll
+                // --- Skills (attribute levels via Klei.AI.Attributes extension) ---
                 var skills = new Dictionary<string, int>();
-                // Skill reading deferred until decompile confirms component/attribute API
-                // Will be populated after Assembly-CSharp.dll is verified
+                try
+                {
+                    var attrs = minion.GetAttributes();
+                    if (attrs != null)
+                    {
+                        foreach (var attr in attrs.AttributeTable)
+                        {
+                            if (attr == null) continue;
+                            float val = attr.GetTotalValue();
+                            if (val > 0f)
+                                skills[attr.Id] = (int)val;
+                        }
+                    }
+                }
+                catch { /* attributes unavailable */ }
 
-                // --- Traits ---
-                // DECOMPILE NOTE: Traits component TraitList field to verify
+                // --- Traits (Klei.AI.Traits component) ---
                 var traits = new List<string>();
-                // Trait reading deferred until decompile confirms Traits component API
+                try
+                {
+                    var traitComp = minion.GetComponent<Klei.AI.Traits>();
+                    if (traitComp != null)
+                    {
+                        foreach (string tid in traitComp.GetTraitIds())
+                            traits.Add(tid);
+                    }
+                }
+                catch { /* traits unavailable */ }
 
                 // --- Type-specific data ---
                 object typeData;
                 if (isBionic)
                 {
                     float charge = 0f;
-                    bool charging = false;
                     try
                     {
                         var bat = minion.GetSMI<RobotBatteryMonitor.Instance>();
-                        // Verify exact field names via decompile
-                        // charge = bat.battery.value;
-                        // charging = bat.IsCharging();
+                        if (bat != null && bat.amountInstance != null)
+                        {
+                            float max = bat.amountInstance.GetMax();
+                            if (max > 0f)
+                                charge = bat.amountInstance.value / max;
+                        }
                     }
                     catch { /* bionic battery unavailable */ }
-                    typeData = new { type = "bionic", charge_pct = charge, charging = charging };
+                    typeData = new { type = "bionic", charge_pct = System.Math.Round(charge, 3) };
                 }
                 else
                 {
                     float hunger = 0f, bladder = 0f, stamina = 0f;
                     int morale = 0;
 
-                    // CalorieMonitor: calories field may be AmountInstance not float — decompile needed
-                    // Hunger reading stubbed until CalorieMonitor API confirmed
+                    // CalorieMonitor: calories is AmountInstance; use .value / GetMax() for 0-1 range
                     try
                     {
-                        var calories = minion.GetSMI<CalorieMonitor.Instance>();
-                        // calories.calories is AmountInstance — use .value to get the float
-                        // DECOMPILE: verify calories.calories.value or calories.GetCalories()
-                        if (calories != null)
+                        var calMon = minion.GetSMI<CalorieMonitor.Instance>();
+                        if (calMon != null && calMon.calories != null)
                         {
-                            // calories.calories.value / max_calories — stub until confirmed
+                            float max = calMon.calories.GetMax();
+                            if (max > 0f)
+                                hunger = 1f - (calMon.calories.value / max); // 0=full, 1=starving
                         }
                     }
                     catch { }
 
-                    // BladderMonitor: field name needs decompile verification
+                    // BladderMonitor: bladder field is private; use Db.Get().Amounts.Bladder.Lookup
                     try
                     {
-                        var bladderMon = minion.GetSMI<BladderMonitor.Instance>();
-                        // DECOMPILE: verify bladderMon.bladder.value or similar field
-                        if (bladderMon != null) { /* stub */ }
+                        var bladderAmt = Db.Get().Amounts.Bladder.Lookup(minion.gameObject);
+                        if (bladderAmt != null)
+                            bladder = bladderAmt.value / 100f; // 0-1 range (max is 100)
                     }
                     catch { }
 
@@ -420,26 +442,43 @@ namespace ONIBridge
 
         private static object GetResearch()
         {
-            // DECOMPILE REQUIRED: Research.Instance API (GetTechProgress, activeResearch)
-            // not yet verified via Assembly-CSharp.dll.
-            // Returning minimal stub until decompile confirms field/method names.
             var unlocked = new List<string>();
             string currentTech = null;
             float currentProgress = 0f;
-            float currentCost = 0f;
 
-            // TODO: implement after decompile confirms:
-            // - Research.Instance.GetTechProgress(Tech) or equivalent
-            // - Research.Instance.activeResearch field / property
-            // - TechInstance.IsComplete() method
-            // - Tech.costsByResearchTypeID or equivalent cost field
+            var research = Research.Instance;
+            if (research == null) return new { unlocked, current_tech = currentTech, current_progress = currentProgress };
+
+            // Enumerate all techs to find completed ones
+            try
+            {
+                foreach (Tech tech in Db.Get().Techs.resources)
+                {
+                    if (tech == null) continue;
+                    var ti = research.GetTechInstance(tech.Id);
+                    if (ti != null && ti.IsComplete())
+                        unlocked.Add(tech.Id);
+                }
+            }
+            catch { }
+
+            // Active research
+            try
+            {
+                var active = research.GetActiveResearch();
+                if (active != null)
+                {
+                    currentTech     = active.tech?.Id;
+                    currentProgress = active.GetTotalPercentageComplete();
+                }
+            }
+            catch { }
 
             return new
             {
-                unlocked         = unlocked,
+                unlocked,
                 current_tech     = currentTech,
-                current_progress = System.Math.Round(currentProgress, 1),
-                current_cost     = System.Math.Round(currentCost, 0),
+                current_progress = System.Math.Round(currentProgress, 3),
             };
         }
 

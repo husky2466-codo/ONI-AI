@@ -51,17 +51,60 @@ namespace ONIBridge
                     }
                     case "assign_research":
                     {
-                        // DECOMPILE REQUIRED: Research.Instance API not yet verified.
-                        // Will implement once Assembly-CSharp.dll is decompiled to confirm
-                        // method names for tech lookup and active research assignment.
-                        BridgeServer.Instance.SendAck(cmd.Action, false, "decompile_required:assign_research");
+                        string techId = cmd.GetString("tech_id");
+                        if (string.IsNullOrEmpty(techId))
+                        {
+                            BridgeServer.Instance.SendAck(cmd.Action, false, "tech_id is required");
+                            break;
+                        }
+                        var research = Research.Instance;
+                        if (research == null)
+                        {
+                            BridgeServer.Instance.SendAck(cmd.Action, false, "Research.Instance unavailable");
+                            break;
+                        }
+                        Tech tech = null;
+                        try { tech = Db.Get().Techs.Get(techId); } catch { }
+                        if (tech == null)
+                        {
+                            BridgeServer.Instance.SendAck(cmd.Action, false, $"Unknown tech: {techId}");
+                            break;
+                        }
+                        var ti = research.GetTechInstance(techId);
+                        if (ti != null && ti.IsComplete())
+                        {
+                            BridgeServer.Instance.SendAck(cmd.Action, false, "tech_already_complete");
+                            break;
+                        }
+                        research.SetActiveResearch(tech);
+                        BridgeServer.Instance.SendAck(cmd.Action, true);
+                        Debug.Log($"[ONIBridge] Active research set to {techId}");
                         break;
                     }
                     case "enable_building":
                     {
-                        // DECOMPILE REQUIRED: UserControlledToggle and Operational.Flag.Enabled
-                        // not yet verified via Assembly-CSharp.dll decompile.
-                        BridgeServer.Instance.SendAck(cmd.Action, false, "decompile_required:enable_building");
+                        int cell = Grid.XYToCell(cmd.CellX, cmd.CellY);
+                        if (!Grid.IsValidCell(cell))
+                        {
+                            BridgeServer.Instance.SendAck(cmd.Action, false, $"Invalid cell ({cmd.CellX},{cmd.CellY})");
+                            break;
+                        }
+                        var go = Grid.Objects[cell, (int)ObjectLayer.Building];
+                        if (go == null)
+                        {
+                            BridgeServer.Instance.SendAck(cmd.Action, false, "No building at cell");
+                            break;
+                        }
+                        var toggle = go.GetComponent<BuildingEnabledButton>();
+                        if (toggle == null)
+                        {
+                            BridgeServer.Instance.SendAck(cmd.Action, false, "Building does not support enable/disable");
+                            break;
+                        }
+                        bool enabled = cmd.GetBool("enabled");
+                        toggle.IsEnabled = enabled;
+                        BridgeServer.Instance.SendAck(cmd.Action, true);
+                        Debug.Log($"[ONIBridge] Building at ({cmd.CellX},{cmd.CellY}) enabled={enabled}");
                         break;
                     }
                     case "accept_print":
