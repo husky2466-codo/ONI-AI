@@ -69,3 +69,19 @@ def test_build_set_priority():
 def test_build_action_rejects_unknown():
     with pytest.raises(ValueError, match="Unknown action"):
         build_action("fly_rocket")
+
+
+def test_build_set_speed_action():
+    action = build_action("set_speed", speed=2)
+    assert action["action"] == "set_speed"
+    assert action["speed"] == 2
+
+
+def test_set_speed_is_valid_action():
+    from src.agent.protocol import VALID_ACTIONS
+    assert "set_speed" in VALID_ACTIONS
+
+
+def test_build_unknown_action_raises():
+    with pytest.raises(ValueError):
+        build_action("invalid_action")

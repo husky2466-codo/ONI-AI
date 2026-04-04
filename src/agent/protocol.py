@@ -3,7 +3,7 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
-VALID_ACTIONS = {"place_building", "dig", "cancel_dig", "set_priority", "no_op"}
+VALID_ACTIONS = {"place_building", "dig", "cancel_dig", "set_priority", "no_op", "set_speed"}
 
 
 @dataclass
