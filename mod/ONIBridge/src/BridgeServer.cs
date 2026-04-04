@@ -17,6 +17,10 @@ namespace ONIBridge
     ///   Game → Agent: { "type": "state", "data": { ... } }  — every N game ticks
     ///   Agent → Game: { "type": "action", "action": "place_building", ... }
     ///   Game → Agent: { "type": "ack", "success": true }
+    ///
+    /// IMPORTANT: SendState and SendAck enqueue messages to _sendQueue.
+    /// A dedicated background send thread drains the queue — the main game
+    /// thread never blocks on TCP writes.
     /// </summary>
     public class BridgeServer
     {
@@ -24,9 +28,15 @@ namespace ONIBridge
 
         private TcpListener? _listener;
         private Thread? _listenerThread;
+        private Thread? _sendThread;
         private TcpClient? _connectedClient;
         private readonly ConcurrentQueue<ActionCommand> _pendingActions = new ConcurrentQueue<ActionCommand>();
+        private readonly ConcurrentQueue<byte[]> _sendQueue = new ConcurrentQueue<byte[]>();
         private bool _running = false;
+
+        // Drop outbound messages if queue grows beyond this — prevents unbounded
+        // memory growth when the Python side is slow/disconnected.
+        private const int MaxSendQueueDepth = 10;
 
         public bool IsConnected => _connectedClient?.Connected == true;
 
@@ -41,6 +51,14 @@ namespace ONIBridge
                 Name = "ONIBridge-Listener"
             };
             _listenerThread.Start();
+
+            _sendThread = new Thread(SendLoop)
+            {
+                IsBackground = true,
+                Name = "ONIBridge-Send"
+            };
+            _sendThread.Start();
+
             Debug.Log($"[ONIBridge] Listening on port {port}");
         }
 
@@ -63,47 +81,65 @@ namespace ONIBridge
         }
 
         /// <summary>
-        /// Send a state snapshot to the connected AI agent.
-        /// Called from the main game thread.
+        /// Enqueue a state snapshot for async sending. Never blocks the game thread.
         /// </summary>
         public void SendState(object statePayload)
         {
             if (_connectedClient?.Connected != true) return;
-
-            try
+            if (_sendQueue.Count >= MaxSendQueueDepth)
             {
-                var msg = JsonConvert.SerializeObject(new { type = "state", data = statePayload });
-                var bytes = Encoding.UTF8.GetBytes(msg + "\n");
-                _connectedClient.GetStream().Write(bytes, 0, bytes.Length);
+                Debug.LogWarning("[ONIBridge] Send queue full — dropping state message");
+                return;
             }
-            catch (Exception ex)
-            {
-                Debug.LogWarning($"[ONIBridge] SendState failed: {ex.Message}");
-                _connectedClient = null;
-            }
+            var msg = JsonConvert.SerializeObject(new { type = "state", data = statePayload });
+            _sendQueue.Enqueue(Encoding.UTF8.GetBytes(msg + "\n"));
         }
 
         /// <summary>
-        /// Send an action acknowledgement to the connected AI agent.
-        /// Called from the main game thread after executing an action.
+        /// Enqueue an action acknowledgement for async sending. Never blocks the game thread.
         /// </summary>
         public void SendAck(string action, bool success, string? error = null)
         {
             if (_connectedClient?.Connected != true) return;
-            try
+            var msg = JsonConvert.SerializeObject(new AckMessage
             {
-                var msg = JsonConvert.SerializeObject(new AckMessage
+                Action = action,
+                Success = success,
+                Error = error
+            });
+            _sendQueue.Enqueue(Encoding.UTF8.GetBytes(msg + "\n"));
+        }
+
+        /// <summary>
+        /// Background thread: drains _sendQueue and writes to the TCP stream.
+        /// All blocking TCP writes happen here, never on the game thread.
+        /// </summary>
+        private void SendLoop()
+        {
+            while (_running)
+            {
+                if (_sendQueue.TryDequeue(out var bytes))
                 {
-                    Action = action,
-                    Success = success,
-                    Error = error
-                });
-                var bytes = Encoding.UTF8.GetBytes(msg + "\n");
-                _connectedClient.GetStream().Write(bytes, 0, bytes.Length);
-            }
-            catch (Exception ex)
-            {
-                Debug.LogWarning($"[ONIBridge] SendAck failed: {ex.Message}");
+                    var client = _connectedClient;
+                    if (client?.Connected != true)
+                    {
+                        // Client gone — discard and keep draining to prevent queue buildup
+                        continue;
+                    }
+                    try
+                    {
+                        client.GetStream().Write(bytes, 0, bytes.Length);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.LogWarning($"[ONIBridge] Send failed: {ex.Message}");
+                        _connectedClient = null;
+                    }
+                }
+                else
+                {
+                    Thread.Sleep(5); // nothing to send — yield briefly
+                }
             }
         }
 
@@ -118,6 +154,8 @@ namespace ONIBridge
                 {
                     var client = _listener.AcceptTcpClient();
                     Debug.Log("[ONIBridge] AI agent connected.");
+                    // Clear stale send queue from previous session
+                    while (_sendQueue.TryDequeue(out _)) { }
                     // Close stale previous connection, then swap in the new one.
                     var previous = _connectedClient;
                     _connectedClient = client;

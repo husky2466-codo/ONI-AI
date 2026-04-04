@@ -32,7 +32,11 @@ class BridgeClient:
                 await asyncio.sleep(self.reconnect_delay)
 
     async def state_stream(self) -> AsyncIterator[StateMessage]:
-        """Yield StateMessage objects as they arrive from the game."""
+        """Yield StateMessage objects as they arrive from the game.
+
+        Drains any buffered messages and yields only the latest — prevents
+        acting on stale state that accumulated while the LLM was thinking.
+        """
         while True:
             try:
                 assert self._reader is not None
@@ -41,6 +45,19 @@ class BridgeClient:
                     logger.warning("Connection closed by game — reconnecting")
                     await self.connect()
                     continue
+
+                # Drain any additional buffered lines, keep only the latest.
+                while True:
+                    try:
+                        next_line = await asyncio.wait_for(
+                            self._reader.readline(), timeout=0.0
+                        )
+                        if not next_line:
+                            break
+                        line = next_line
+                    except asyncio.TimeoutError:
+                        break
+
                 raw = line.decode("utf-8").strip()
                 if not raw:
                     continue
