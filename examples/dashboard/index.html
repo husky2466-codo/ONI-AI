@@ -122,7 +122,35 @@ body {
 
 <!-- Tab content -->
 <div id="tab-content">
-  <div class="tab-body active" id="tab-colony"><!-- Task 3 --></div>
+  <div class="tab-body active" id="tab-colony"><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;height:100%">
+  <!-- Left column -->
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <div class="card">
+      <h3>Game</h3>
+      <div style="font-size:32px;color:#58a6ff;font-weight:bold;line-height:1" id="col-cycle">—</div>
+      <div style="font-size:9px;color:#484f58;margin-bottom:6px">CYCLE</div>
+      <div class="kv"><span class="k">Time</span><span class="v" id="col-time">—</span></div>
+      <div class="kv"><span class="k">Phase</span><span class="v" id="col-phase">—</span></div>
+      <div class="kv"><span class="k">Speed</span><span class="v" id="col-speed">—</span></div>
+    </div>
+    <div class="card">
+      <h3>Resources</h3>
+      <div id="col-resources"></div>
+    </div>
+  </div>
+  <!-- Right column -->
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <div class="card">
+      <h3>Alerts</h3>
+      <div id="col-alerts" style="font-size:12px;color:#484f58">No alerts</div>
+    </div>
+    <div class="card" style="flex:1">
+      <h3>Tile Window</h3>
+      <div id="col-tile-pos" style="font-size:10px;color:#484f58;margin-bottom:4px"></div>
+      <canvas id="col-tile-canvas" style="image-rendering:pixelated;width:100%;max-width:256px"></canvas>
+    </div>
+  </div>
+</div></div>
   <div class="tab-body" id="tab-duplicants"><!-- Task 4 --></div>
   <div class="tab-body" id="tab-research"><!-- Task 5 --></div>
   <div class="tab-body" id="tab-perimeter"><!-- Task 6 --></div>
@@ -264,7 +292,84 @@ function updateTimestamp() {
 setInterval(updateTimestamp, 500);
 
 // Stub render functions — filled in per task
-function renderColony() {}
+var TILE_COLORS = {
+  'Vacuum': '#0d1117',
+  'Sandstone': '#c8a96e',
+  'Dirt': '#8b6914',
+  'Granite': '#7a7a8a',
+  'Algae': '#3fb950',
+  'Water': '#1f6feb',
+  'Oxygen': '#58a6ff22',
+  'CarbonDioxide': '#f0883e33',
+  'Polluted Water': '#5a4a1a',
+  'Polluted Oxygen': '#8b8b1a',
+};
+
+function renderColony() {
+  if (!state) return;
+  setText('col-cycle', state.cycle != null ? state.cycle : '—');
+  setText('col-time', state.time != null ? state.time.toFixed(1) + 's' : '—');
+  setText('col-phase', state.phase != null ? state.phase : '—');
+  setText('col-speed', state.speed != null ? state.speed + 'x' : '—');
+
+  // Resources
+  var res = state.resources || {};
+  var resEl = document.getElementById('col-resources');
+  resEl.textContent = '';
+  var rows = [
+    ['O2', res.oxygen_kg, 'kg'],
+    ['Water', res.water_kg, 'kg'],
+    ['Food', res.food_kcal, 'kcal'],
+    ['Power', res.power_kw, 'kW'],
+    ['CO2', res.co2_kg, 'kg'],
+  ];
+  rows.forEach(function(r) {
+    var div = document.createElement('div');
+    div.className = 'kv';
+    var k = document.createElement('span'); k.className = 'k'; k.textContent = r[0];
+    var v = document.createElement('span'); v.className = 'v'; v.textContent = r[1] != null ? r[1].toFixed(1) + ' ' + r[2] : '—';
+    div.appendChild(k); div.appendChild(v);
+    resEl.appendChild(div);
+  });
+
+  // Alerts
+  var alerts = state.alerts || [];
+  var alertEl = document.getElementById('col-alerts');
+  if (alerts.length === 0) {
+    alertEl.textContent = 'No alerts';
+    alertEl.style.color = '#484f58';
+  } else {
+    alertEl.textContent = '';
+    alerts.forEach(function(a) {
+      var div = document.createElement('div');
+      div.style.cssText = 'padding:2px 0;border-bottom:1px solid #21262d;font-size:12px;color:#f0883e';
+      div.textContent = a;
+      alertEl.appendChild(div);
+    });
+  }
+
+  // Tile canvas
+  var tiles = state.tiles;
+  if (tiles && tiles.data) {
+    var canvas = document.getElementById('col-tile-canvas');
+    var w = tiles.w || 64; var h = tiles.h || 64;
+    canvas.width = w; canvas.height = h;
+    var ctx = canvas.getContext('2d');
+    var img = ctx.createImageData(w, h);
+    for (var i = 0; i < tiles.data.length; i++) {
+      var cell = tiles.data[i];
+      var color = TILE_COLORS[cell[0]] || '#30363d';
+      var r2 = parseInt(color.slice(1,3)||'30',16);
+      var g2 = parseInt(color.slice(3,5)||'36',16);
+      var b2 = parseInt(color.slice(5,7)||'3d',16);
+      var idx = i * 4;
+      img.data[idx]=r2; img.data[idx+1]=g2; img.data[idx+2]=b2; img.data[idx+3]=255;
+    }
+    ctx.putImageData(img, 0, 0);
+    document.getElementById('col-tile-pos').textContent =
+      'window: (' + tiles.x + ',' + tiles.y + ') 64×64';
+  }
+}
 function renderDuplicants() {}
 function renderResearch() {}
 function renderPerimeter() {}
