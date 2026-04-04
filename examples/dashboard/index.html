@@ -147,6 +147,22 @@ body {
 .offer-card { background: #0d1117; border: 1px solid #30363d; border-radius: 3px; padding: 6px 8px; margin: 4px 0; }
 .offer-name { color: #ffa657; font-weight: bold; font-size: 13px; margin-bottom: 3px; }
 .offer-detail { color: #8b949e; font-size: 11px; }
+
+/* ── Log ── */
+.log-entry { display: flex; gap: 8px; padding: 3px 0; border-bottom: 1px solid #0d1117; font-size: 11px; align-items: baseline; }
+.log-ts { color: #484f58; flex-shrink: 0; width: 70px; font-size: 10px; }
+.log-badge { flex-shrink: 0; width: 60px; font-size: 10px; padding: 1px 4px; border-radius: 2px; text-align: center; }
+.lb-action   { background: #1a2332; color: #58a6ff; }
+.lb-ack-ok   { background: #1f3a2b; color: #3fb950; }
+.lb-ack-fail { background: #2d1f1f; color: #f85149; }
+.lb-reward   { background: #1f1a2e; color: #a371f7; }
+.lb-agent    { background: #21262d; color: #8b949e; }
+.lb-error    { background: #2d1f1f; color: #f85149; }
+.lb-event    { background: #2d2210; color: #f0883e; }
+.log-msg { flex: 1; color: #c9d1d9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.log-msg.muted { color: #484f58; }
+.fpill { padding: 2px 8px; border-radius: 10px; font-size: 10px; cursor: pointer; border: 1px solid #30363d; background: #21262d; color: #8b949e; }
+.fpill.on { border-color: #58a6ff; color: #58a6ff; background: #1a2332; }
 </style>
 </head>
 <body>
@@ -263,7 +279,39 @@ body {
     <div id="peri-history"></div>
   </div>
 </div></div>
-  <div class="tab-body" id="tab-log"><!-- Task 7 --></div>
+  <div class="tab-body" id="tab-log"><div style="display:grid;grid-template-columns:1fr 200px;gap:6px;height:100%">
+  <div class="card" style="display:flex;flex-direction:column">
+    <h3>Session Feed</h3>
+    <div id="log-filters" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">
+      <span class="fpill on" data-filter="all" onclick="toggleFilter(this)">All</span>
+      <span class="fpill on" data-filter="action" onclick="toggleFilter(this)">Actions</span>
+      <span class="fpill on" data-filter="ack" onclick="toggleFilter(this)">ACKs</span>
+      <span class="fpill on" data-filter="reward" onclick="toggleFilter(this)">Rewards</span>
+      <span class="fpill on" data-filter="event" onclick="toggleFilter(this)">Events</span>
+      <span class="fpill on" data-filter="agent" onclick="toggleFilter(this)">Agent</span>
+      <span class="fpill on" data-filter="error" onclick="toggleFilter(this)">Errors</span>
+    </div>
+    <div id="log-feed" style="overflow-y:auto;flex:1"></div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <div class="card">
+      <h3>Session Stats</h3>
+      <div class="kv"><span class="k">Ticks</span><span class="v" id="ls-ticks">0</span></div>
+      <div class="kv"><span class="k">Actions</span><span class="v" id="ls-actions">0</span></div>
+      <div class="kv"><span class="k">ACK ok</span><span class="v ok" id="ls-ack-ok">0</span></div>
+      <div class="kv"><span class="k">ACK fail</span><span class="v warn" id="ls-ack-fail">0</span></div>
+      <div class="kv"><span class="k">No-ops</span><span class="v" id="ls-noops">0</span></div>
+      <div class="kv"><span class="k">Errors</span><span class="v bad" id="ls-errors">0</span></div>
+    </div>
+    <div class="card">
+      <h3>Episode</h3>
+      <div class="kv"><span class="k">Phase</span><span class="v" id="ls-phase">—</span></div>
+      <div class="kv"><span class="k">Cycle</span><span class="v" id="ls-cycle">—</span></div>
+      <div class="kv"><span class="k">Reward</span><span class="v ok" id="ls-reward">—</span></div>
+      <div class="kv"><span class="k">Deaths</span><span class="v ok" id="ls-deaths">0</span></div>
+    </div>
+  </div>
+</div></div>
   <div class="tab-body" id="tab-config"><!-- Task 8 --></div>
 </div>
 
@@ -724,7 +772,64 @@ function renderPerimeter() {
     });
   }
 }
-function renderLog() {}
+var _logFilters = { all: true, action: true, ack: true, reward: true, event: true, agent: true, error: true };
+
+function toggleFilter(el) {
+  var f = el.getAttribute('data-filter');
+  _logFilters[f] = !_logFilters[f];
+  el.classList.toggle('on', _logFilters[f]);
+  renderLog();
+}
+
+function renderLog() {
+  // Stats
+  setText('ls-ticks', sessionStats.ticks);
+  setText('ls-actions', sessionStats.actions);
+  setText('ls-ack-ok', sessionStats.ackOk);
+  setText('ls-ack-fail', sessionStats.ackFail);
+  setText('ls-noops', sessionStats.noops);
+  setText('ls-errors', sessionStats.errors);
+  setText('ls-phase', state.phase != null ? state.phase : '—');
+  setText('ls-cycle', state.cycle != null ? state.cycle + ' / 100' : '—');
+  var rew = (state && state.reward) || {};
+  setText('ls-reward', rew.episode != null ? (rew.episode >= 0 ? '+' : '') + rew.episode.toFixed(1) : '—');
+
+  // Feed
+  var feed = document.getElementById('log-feed');
+  if (!feed) return;
+  var wasAtBottom = feed.scrollHeight - feed.scrollTop - feed.clientHeight < 40;
+  feed.textContent = '';
+
+  var BADGE_CLASS = {
+    'action': 'lb-action', 'ack-ok': 'lb-ack-ok', 'ack-fail': 'lb-ack-fail',
+    'reward': 'lb-reward', 'agent': 'lb-agent', 'error': 'lb-error', 'event': 'lb-event',
+  };
+  var BADGE_LABEL = {
+    'action': 'action', 'ack-ok': 'ack ✓', 'ack-fail': 'ack ✗',
+    'reward': 'reward', 'agent': 'agent', 'error': 'error', 'event': 'event',
+  };
+
+  var shown = logEntries.filter(function(e) {
+    if (_logFilters.all) return true;
+    var cat = e.type.startsWith('ack') ? 'ack' : e.type;
+    return _logFilters[cat];
+  });
+
+  shown.slice(-200).forEach(function(e) {
+    var row = document.createElement('div'); row.className = 'log-entry';
+    var ts = document.createElement('span'); ts.className = 'log-ts'; ts.textContent = e.ts;
+    var badge = document.createElement('span');
+    badge.className = 'log-badge ' + (BADGE_CLASS[e.type] || 'lb-agent');
+    badge.textContent = BADGE_LABEL[e.type] || e.type;
+    var msg = document.createElement('span');
+    msg.className = 'log-msg' + (e.type === 'agent' && e.msg && e.msg.includes('no_op') ? ' muted' : '');
+    msg.textContent = e.msg;
+    row.appendChild(ts); row.appendChild(badge); row.appendChild(msg);
+    feed.appendChild(row);
+  });
+
+  if (wasAtBottom) feed.scrollTop = feed.scrollHeight;
+}
 function renderConfig() {}
 function loadConfig() {}
 function renderHealthStrip() {
