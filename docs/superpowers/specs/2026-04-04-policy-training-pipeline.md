@@ -108,13 +108,22 @@ a few actions."*
 
 ### Short-Term: Linux Desktop Vision Models
 
-Two lightweight vision models are being downloaded to the Linux desktop (selection TBD).
+Two GGUF vision models are deployed on the Linux desktop (RTX 4070):
+
+| Model | Format | Size | Role |
+|-------|--------|------|------|
+| `ggml-org/SmolVLM2-2.2B-Instruct-GGUF` | GGUF | ~2.2B | **Default** — fast, sufficient for game state descriptions |
+| `unsloth/Qwen2.5-VL-7B-Instruct-GGUF` | GGUF | ~7B | Fallback — higher quality if SmolVLM2 descriptions prove insufficient |
+
+Both models are served via **llama.cpp server** (not vLLM — GGUF format requires llama.cpp).
+Both fit in RTX 4070 VRAM alongside running TTS containers.
+
 Pipeline:
 
 ```
-scrot/xwd on Linux desktop (every 10–15s)
+scrot on Linux desktop (every 10–15s)
     → JPEG compressed screenshot
-    → lightweight vision model inference (local GPU)
+    → llama.cpp server (SmolVLM2-2.2B, :8080 suggested)
     → text description: layout, notable structures, dupe positions
     → injected into state prompt before ModelBackend.call()
 ```
@@ -317,7 +326,7 @@ This is out of scope for Phase 0/1 but the infrastructure is already in place.
 
 | Item | Owner | Priority |
 |------|-------|----------|
-| Select and deploy vision models on Linux desktop | User | P1 — blocks vision pipeline |
+| Deploy llama.cpp server for SmolVLM2-2.2B on Linux desktop :8080 | User | P1 — blocks vision pipeline |
 | Implement `OpenAICompatibleBackend` in `llm.py` | Dev Claude | P1 |
 | Implement `capture_vision_description()` in `runner.py` | Dev Claude | P1 |
 | Add Config tab to dashboard | Dev Claude | P1 (in progress) |

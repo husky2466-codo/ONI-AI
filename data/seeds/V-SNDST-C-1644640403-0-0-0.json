@@ -25,6 +25,14 @@
     { "type": "Volcano",                "count": 1, "notes": "Wall off and ignore" }
   ],
 
+  "canonical_save": {
+    "colony_name": "training-start",
+    "save_path": "~/.config/unity3d/Klei/Oxygen Not Included/save_files/training-start/training-start.sav",
+    "created": "2026-04-04",
+    "confirmed": true,
+    "note": "Saved at cycle 1 before any actions taken. This is the reset target for all training episodes."
+  },
+
   "known_locations": {
     "note": "Populate after first manual play session using debug reveal (Ctrl+F8)",
     "geysers": [],
