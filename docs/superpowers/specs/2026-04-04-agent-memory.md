@@ -205,7 +205,7 @@ class MemoryStore:
 
     COLLECTION_NAME = "oni_agent_memory"
     CHROMA_HOST = "10.0.0.10"
-    CHROMA_PORT = 8000  # ChromaDB default
+    CHROMA_PORT = 8300  # confirmed: mapped 0.0.0.0:8300->8000/tcp
 
     def __init__(self) -> None:
         self._client = chromadb.HttpClient(
@@ -342,5 +342,4 @@ Upgrade path: swap to a larger embedding model served on DGX A if retrieval qual
 | Extend `EventDetector` with `on_death` callback | Dev Claude | P2 |
 | Add `write_perimeter_outcome()` call to perimeter completion handler | Dev Claude | P2 |
 | Add `retrieve()` + prompt injection to runner.py tick loop | Dev Claude | P2 |
-| Verify ChromaDB at 10.0.0.10 is accessible from Mac runner | User | P1 |
-| Confirm ChromaDB port (default 8000 — may conflict with vLLM on DGX A) | User | P1 |
+| Verify ChromaDB at 10.0.0.10:8300 is accessible from Mac runner | User | P1 |
