@@ -233,7 +233,36 @@ body {
     <div id="pod-offers" style="margin-top:8px"></div>
   </div>
 </div></div>
-  <div class="tab-body" id="tab-perimeter"><!-- Task 6 --></div>
+  <div class="tab-body" id="tab-perimeter"><div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto 1fr;gap:6px;height:100%">
+  <div class="card" style="grid-column:1;grid-row:1/3;overflow-y:auto">
+    <h3 id="peri-title">Active Perimeter</h3>
+    <div class="kv"><span class="k">Goal</span><span class="v" id="peri-goal" style="color:#a371f7">—</span></div>
+    <div class="kv"><span class="k">Bounds</span><span class="v" id="peri-bounds">—</span></div>
+    <div class="kv"><span class="k">Blueprint</span><span class="v" id="peri-blueprint">—</span></div>
+    <div class="progress-track"><div class="progress-fill" id="peri-prog-fill" style="width:0%"></div></div>
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:#484f58;margin-bottom:8px">
+      <span id="peri-pct">0%</span><span id="peri-placed"></span>
+    </div>
+    <div id="peri-tasks"></div>
+    <div id="peri-prereqs" style="margin-top:8px"></div>
+  </div>
+  <div class="card" style="grid-column:2;grid-row:1">
+    <h3>Reward Tracking</h3>
+    <div class="kv"><span class="k">Tick reward</span><span class="v ok" id="rew-tick">—</span></div>
+    <div class="kv"><span class="k">Episode total</span><span class="v ok" id="rew-episode">—</span></div>
+    <div class="kv"><span class="k">Survival layer</span><span class="v ok" id="rew-survival">—</span></div>
+    <div class="kv"><span class="k">Progress layer</span><span class="v ok" id="rew-progress">—</span></div>
+    <div class="kv"><span class="k">Event layer</span><span class="v" id="rew-event">—</span></div>
+    <div style="margin-top:8px">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#484f58;margin-bottom:4px">Open Events</div>
+      <div id="rew-open-events"></div>
+    </div>
+  </div>
+  <div class="card" style="grid-column:2;grid-row:2;overflow-y:auto">
+    <h3>Perimeter History</h3>
+    <div id="peri-history"></div>
+  </div>
+</div></div>
   <div class="tab-body" id="tab-log"><!-- Task 7 --></div>
   <div class="tab-body" id="tab-config"><!-- Task 8 --></div>
 </div>
@@ -363,6 +392,7 @@ function renderAll() {
   renderColony();
   renderDuplicants();
   renderResearch();
+  renderPerimeter();
   renderHealthStrip();
   updateTimestamp();
 }
@@ -606,7 +636,94 @@ function selectTech(techId) {
   bld.textContent = '';
   box.classList.add('visible');
 }
-function renderPerimeter() {}
+function renderPerimeter() {
+  var peri = (state && state.perimeter) || {};
+  var rew = (state && state.reward) || {};
+
+  setText('peri-goal', peri.goal || '—');
+  setText('peri-bounds', peri.bounds ? '(' + peri.bounds[0] + ') → (' + peri.bounds[1] + ')' : '—');
+  setText('peri-blueprint', peri.blueprint || '—');
+  var pct = peri.progress_pct || 0;
+  document.getElementById('peri-prog-fill').style.width = pct + '%';
+  setText('peri-pct', pct + '% complete');
+  setText('peri-placed', peri.placed != null ? peri.placed + ' / ' + peri.total + ' buildings' : '');
+
+  // Task board
+  var tasksEl = document.getElementById('peri-tasks');
+  tasksEl.textContent = '';
+  var sections = [
+    { label: 'Completed', items: peri.tasks_done || [], state: 'done' },
+    { label: 'Up Next',   items: peri.tasks_next || [], state: 'next' },
+    { label: 'Blocked',   items: peri.tasks_blocked || [], state: 'blocked' },
+  ];
+  sections.forEach(function(s) {
+    if (s.items.length === 0) return;
+    var lbl = document.createElement('div');
+    lbl.style.cssText = 'font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#484f58;margin:6px 0 3px';
+    lbl.textContent = s.label;
+    tasksEl.appendChild(lbl);
+    s.items.forEach(function(t) {
+      var row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:3px 0;border-bottom:1px solid #21262d;font-size:12px';
+      var check = document.createElement('span');
+      check.style.color = s.state === 'done' ? '#3fb950' : s.state === 'next' ? '#58a6ff' : '#484f58';
+      check.textContent = s.state === 'done' ? '✓' : s.state === 'next' ? '▶' : '○';
+      var name = document.createElement('span');
+      name.style.cssText = 'flex:1' + (s.state === 'done' ? ';color:#484f58;text-decoration:line-through' : s.state === 'blocked' ? ';color:#484f58' : '');
+      name.textContent = typeof t === 'string' ? t : t.name;
+      row.appendChild(check); row.appendChild(name);
+      if (t.dep) {
+        var dep = document.createElement('span');
+        dep.style.cssText = 'font-size:10px;color:#484f58';
+        dep.textContent = t.dep;
+        row.appendChild(dep);
+      }
+      tasksEl.appendChild(row);
+    });
+  });
+
+  // Rewards
+  function fmtR(v) { return v != null ? (v >= 0 ? '+' : '') + v.toFixed(2) : '—'; }
+  setText('rew-tick', fmtR(rew.tick));
+  setText('rew-episode', fmtR(rew.episode));
+  setText('rew-survival', fmtR(rew.survival));
+  setText('rew-progress', fmtR(rew.progress));
+  setText('rew-event', fmtR(rew.event));
+
+  var openEl = document.getElementById('rew-open-events');
+  openEl.textContent = '';
+  (rew.open_events || []).forEach(function(e) {
+    var row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:6px;padding:3px 0;font-size:11px;border-bottom:1px solid #21262d';
+    var type = document.createElement('span'); type.style.color = '#f0883e'; type.textContent = e.type || e;
+    var detail = document.createElement('span'); detail.style.cssText = 'flex:1;color:#8b949e'; detail.textContent = e.detail || '';
+    var cost = document.createElement('span'); cost.style.cssText = 'font-weight:bold;color:#f85149'; cost.textContent = e.cost || '';
+    row.appendChild(type); row.appendChild(detail); row.appendChild(cost);
+    openEl.appendChild(row);
+  });
+
+  // History
+  var histEl = document.getElementById('peri-history');
+  histEl.textContent = '';
+  var hist = (state && state.perimeter_history) || [];
+  if (hist.length === 0) {
+    var em = document.createElement('div');
+    em.style.cssText = 'color:#484f58;font-style:italic;font-size:11px;padding:8px 0';
+    em.textContent = 'No archived perimeters yet.';
+    histEl.appendChild(em);
+  } else {
+    hist.forEach(function(h) {
+      var row = document.createElement('div');
+      row.style.cssText = 'display:flex;gap:8px;align-items:center;padding:4px 0;border-bottom:1px solid #21262d;font-size:11px';
+      var goal = document.createElement('span'); goal.style.cssText = 'color:#a371f7;width:100px;flex-shrink:0'; goal.textContent = h.goal;
+      var bounds = document.createElement('span'); bounds.style.cssText = 'flex:1;color:#484f58'; bounds.textContent = h.summary || '';
+      var result = document.createElement('span'); result.style.cssText = 'font-weight:bold;color:' + (h.result === 'complete' ? '#3fb950' : '#484f58');
+      result.textContent = h.result === 'complete' ? '✓ complete' : h.result || '—';
+      row.appendChild(goal); row.appendChild(bounds); row.appendChild(result);
+      histEl.appendChild(row);
+    });
+  }
+}
 function renderLog() {}
 function renderConfig() {}
 function loadConfig() {}
