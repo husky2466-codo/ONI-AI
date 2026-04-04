@@ -40,9 +40,6 @@ RELAY_URL  = f"ws://{RELAY_HOST}:{RELAY_PORT}/ws"
 GAME_HOST  = "10.0.0.10"
 GAME_PORT  = 9999
 
-# Read API key from env (set once when you start the dashboard)
-GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", "")
-
 
 # ---------------------------------------------------------------------------
 # Config persistence
@@ -92,20 +89,34 @@ def runner_running() -> bool:
     return _runner_proc is not None and _runner_proc.poll() is None
 
 
+def _build_runner_cmd() -> list[str]:
+    """Build the runner subprocess command from the active LLM profile."""
+    data = _load_profiles()
+    active_id = data.get("active_id")
+    profile = next((p for p in data.get("profiles", []) if p["id"] == active_id), None)
+
+    cmd = [
+        sys.executable, "-m", "src.agent.runner",
+        "--host", _GAME_CONFIG["host"],
+        "--port", str(_GAME_CONFIG["port"]),
+        "--log-episode", "episodes/run1.json",
+    ]
+    if profile:
+        cmd += ["--endpoint", profile.get("endpoint_url", "")]
+        cmd += ["--model", profile.get("model", "")]
+        if profile.get("api_key"):
+            cmd += ["--api-key", profile["api_key"]]
+        if profile.get("vision_enabled"):
+            cmd += ["--vision"]
+    return cmd
+
+
 def start_runner() -> dict:
     global _runner_proc, _runner_start_time
     if runner_running():
         return {"ok": False, "error": "Runner already running", "pid": _runner_proc.pid}
-    if not GOOGLE_API_KEY:
-        return {"ok": False, "error": "GOOGLE_API_KEY not set in dashboard environment"}
 
-    cmd = [
-        sys.executable, "-m", "src.agent.runner",
-        "--host", GAME_HOST,
-        "--port", str(GAME_PORT),
-        "--api-key", GOOGLE_API_KEY,
-        "--log-episode", "episodes/run1.json",
-    ]
+    cmd = _build_runner_cmd()
     _runner_proc = subprocess.Popen(
         cmd,
         cwd=os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),

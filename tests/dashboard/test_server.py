@@ -142,3 +142,17 @@ def test_set_game_config():
     r2 = client.get("/config/game")
     assert r2.json()["host"] == "10.0.0.99"
     assert r2.json()["port"] == 9998
+
+
+def test_runner_start_uses_active_profile():
+    """start_runner() should not require GOOGLE_API_KEY env var."""
+    import examples.dashboard.server as srv
+    # Ensure no google key set
+    old = os.environ.pop("GOOGLE_API_KEY", None)
+    try:
+        # Should not return an error about missing key
+        result = srv._build_runner_cmd()
+        assert "--api-key" not in result or result[result.index("--api-key") + 1] != ""
+    finally:
+        if old:
+            os.environ["GOOGLE_API_KEY"] = old
