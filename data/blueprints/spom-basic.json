@@ -1,0 +1,122 @@
+{
+  "id": "spom-basic",
+  "name": "Basic SPOM",
+  "description": "Self-Powered Oxygen Machine. Electrolyzer splits water into O2 and H2. Hydrogen generator consumes H2 to power the electrolyzer. Net power positive. Requires water input and gas management.",
+  "goal": "oxygen_production",
+  "phase": 1,
+  "complexity": 3,
+  "footprint": {"w": 8, "h": 6},
+  "requires": {
+    "resources": ["water_kg:1.0"],
+    "research": ["ImprovedOxygen"],
+    "buildings_operational": []
+  },
+  "win_condition": "electrolyzer_operational AND hydrogen_generator_operational",
+  "buildings": [
+    {
+      "id": "Electrolyzer",
+      "rel_x": 3, "rel_y": 0,
+      "note": "Center of build. Consumes 1kg/s water, produces O2 + H2."
+    },
+    {
+      "id": "HydrogenGenerator",
+      "rel_x": 0, "rel_y": 0,
+      "note": "Burns H2 to produce 800W. Powers electrolyzer (120W) with surplus."
+    },
+    {
+      "id": "GasPump",
+      "rel_x": 6, "rel_y": 0,
+      "note": "Pumps O2 out of electrolyzer chamber into base."
+    },
+    {
+      "id": "GasPump",
+      "rel_x": 1, "rel_y": 0,
+      "note": "Pumps H2 from electrolyzer chamber to hydrogen generator."
+    },
+    {
+      "id": "GasFilter",
+      "rel_x": 2, "rel_y": 2,
+      "note": "Filters H2 to generator loop; O2 passes to base. Required to separate gases."
+    },
+    {
+      "id": "LiquidPump",
+      "rel_x": 3, "rel_y": -1,
+      "note": "Pumps water into electrolyzer. Must be submerged in water source."
+    },
+    {
+      "id": "Tile", "rel_x": 0, "rel_y": -1,
+      "note": "Floor tile — seal electrolyzer chamber bottom."
+    },
+    {
+      "id": "Tile", "rel_x": 1, "rel_y": -1, "note": ""
+    },
+    {
+      "id": "Tile", "rel_x": 2, "rel_y": -1, "note": ""
+    },
+    {
+      "id": "Tile", "rel_x": 4, "rel_y": -1, "note": ""
+    },
+    {
+      "id": "Tile", "rel_x": 5, "rel_y": -1, "note": ""
+    },
+    {
+      "id": "Tile", "rel_x": 6, "rel_y": -1, "note": ""
+    },
+    {
+      "id": "GasConduit", "rel_x": 2, "rel_y": 1,
+      "note": "Pipe H2 from electrolyzer area to gas filter."
+    },
+    {
+      "id": "GasConduit", "rel_x": 2, "rel_y": 3,
+      "note": "Pipe H2 from filter to hydrogen generator."
+    },
+    {
+      "id": "GasConduit", "rel_x": 5, "rel_y": 1,
+      "note": "Pipe O2 out from electrolyzer chamber."
+    },
+    {
+      "id": "LiquidConduit", "rel_x": 3, "rel_y": 1,
+      "note": "Water pipe from liquid pump into electrolyzer."
+    },
+    {
+      "id": "WireRefined", "rel_x": 0, "rel_y": 1,
+      "note": "Conductive wire — generator output to electrolyzer and pumps."
+    },
+    {
+      "id": "WireRefined", "rel_x": 3, "rel_y": 1, "note": ""
+    },
+    {
+      "id": "WireRefined", "rel_x": 6, "rel_y": 1, "note": ""
+    }
+  ],
+  "dig_first": [
+    {"rel_x": 0, "rel_y": 0, "note": "Clear space for build area — 8 wide x 6 tall"},
+    {"rel_x": 1, "rel_y": 0, "note": ""},
+    {"rel_x": 2, "rel_y": 0, "note": ""},
+    {"rel_x": 3, "rel_y": 0, "note": ""},
+    {"rel_x": 4, "rel_y": 0, "note": ""},
+    {"rel_x": 5, "rel_y": 0, "note": ""},
+    {"rel_x": 6, "rel_y": 0, "note": ""},
+    {"rel_x": 7, "rel_y": 0, "note": ""}
+  ],
+  "prerequisites": [
+    {
+      "type": "research",
+      "id": "ImprovedOxygen",
+      "description": "Unlocks Electrolyzer. Must be researched before build can start."
+    },
+    {
+      "type": "resource",
+      "id": "water_kg",
+      "min": 1.0,
+      "description": "Water source must be accessible near build site for liquid pump."
+    }
+  ],
+  "notes": [
+    "Gas management is critical — electrolyzer room must be sealed or gases will mix and stall.",
+    "Hydrogen generator produces 800W; electrolyzer consumes 120W; two gas pumps consume 240W total. Net ~440W surplus.",
+    "Place in or near a water biome, or adjacent to a water reservoir.",
+    "Overpressure will stall electrolyzer if gas pressure exceeds 2kg in the room — ensure pumps are operational first.",
+    "This is the minimum viable SPOM. Larger variants use aquatuners for cooling or multiple electrolyzers."
+  ]
+}

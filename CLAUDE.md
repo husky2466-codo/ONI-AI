@@ -5,8 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 
 ONI-AI is an AI agent for playing Oxygen Not Included (ONI). The current approach uses a live
-**Gemini LLM agent** connected to the running game via a C# Harmony mod (ONIBridge). A longer-term
-RL pipeline (Phases 1–5) is scaffolded but not the active focus.
+**Gemini LLM agent** connected to the running game via a C# Harmony mod (ONIBridge), with an
+on-prem training pipeline (GRPO via NemoClaw on DGX Sparks) being built out.
 
 ### Current Status (2026-04-04)
 
@@ -17,12 +17,18 @@ RL pipeline (Phases 1–5) is scaffolded but not the active focus.
 | Dashboard (FastAPI + WebSocket) | Live — speed controls, settings button, live state |
 | Wiki tool calling | Complete — SQLite FTS5, Gemini function calling |
 | Grid vision (tile window) | Complete — 64×64 tile window in state payload |
-| RL pipeline (Phases 1–5) | Scaffolded, not active focus |
+| Spatial perimeter system | Specced — see `docs/superpowers/specs/` |
+| Extended game state schema | Specced |
+| Reward function | Specced |
+| Game reload automation | Specced |
+| Policy & training pipeline | Specced — NemoClaw + GRPO on DGX Sparks |
+| On-prem inference (DGX A) | Ready — Qwen2.5-72B-AWQ serving at 10.0.0.69:8000 |
+| Vision pipeline | Planned — vision models downloading to Linux desktop |
 
 ### Known Issues (from first live session)
-- Agent loses spatial reasoning after a few actions — tile window needs better prompt framing
-- Stress values read >1.0 (StressMonitor.stress.value not clamped)
-- Food kcal reads ~16M (Edible.Calories unit mismatch — likely grams not kcal)
+- Agent loses spatial reasoning after a few actions — tile window needs better prompt framing (vision pipeline will address this)
+- Stress values read >1.0 (StressMonitor.stress.value not clamped) — fix specced
+- Food kcal reads ~16M (Edible.Calories unit mismatch — likely grams not kcal) — fix specced
 
 See `docs/session-logs/` for session notes.
 
@@ -32,7 +38,8 @@ See `docs/session-logs/` for session notes.
 |---------|----|------|-----|
 | Mac Mini M4 Pro | 10.0.0.210 | Dev machine (YOU ARE HERE) | localhost |
 | Linux Desktop | 10.0.0.10 | Game host (ONI + ONIBridge) | `ssh -o IdentitiesOnly=yes -i ~/.ssh/id_ed25519 myroproductions@10.0.0.10` |
-| DGX Spark | 10.0.0.69 | AI compute (future training) | `ssh dgx1-ssh` |
+| DGX Spark A | 10.0.0.69 | Inference — vLLM :8000 (Qwen2.5-72B-AWQ) | `ssh dgx1-ssh` |
+| DGX Spark B | 192.168.3.20 | Training — NemoClaw :8080, vLLM :8000 | (Ross's machine) |
 
 **ONI mod path on Linux desktop:**
 `~/.config/unity3d/Klei/Oxygen Not Included/mods/Dev/ONIBridge/ONIBridge.dll`
@@ -156,6 +163,20 @@ mypy src/
 - **Google-style docstrings**
 - **Import order**: stdlib → third-party → project → relative
 - **Naming**: `snake_case` for Python, `PascalCase` for C#
+
+### Harmony-Direct Principle (C# mod actions)
+
+When implementing game actions in `ActionExecutor.cs`, **always prefer Harmony-direct
+execution** over UI automation:
+
+- **Harmony-direct**: Call game internals directly via reflected or patched methods
+  (e.g., `Research.Instance.SetActiveResearch()`, `UserControlledToggle.Toggle()`).
+  Deterministic, fast, no UI state dependency.
+- **UI automation** (xdotool, mouse/keyboard simulation): Last resort only, when no
+  internal API exists. Document explicitly why Harmony-direct is not possible.
+
+All new action implementations must be classified as one or the other in the action space
+spec (`docs/superpowers/specs/2026-04-04-action-space.md`) before implementation.
 
 ## Specifications & Plans
 
