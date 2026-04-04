@@ -350,6 +350,14 @@ button.sm:disabled { opacity: 0.4; cursor: default; }
     <button class="tb-speed-btn" id="spd-3" onclick="setSpeed(3)" title="Ultra (4x)">4x</button>
   </div>
 
+  <div class="tb-sep"></div>
+
+  <!-- Settings button — opens in-game settings menu via xdotool -->
+  <button class="tb-btn" id="btn-settings" title="Open in-game settings">
+    <span class="tb-icon">⚙️</span>
+    <span class="tb-label">Settings</span>
+  </button>
+
 </div>
 
 <script>
@@ -626,6 +634,7 @@ document.querySelectorAll('[data-drawer]').forEach(function(btn){
   btn.addEventListener('click', function(){ openDrawer(btn.getAttribute('data-drawer'), btn); });
 });
 document.getElementById('btn-noop').addEventListener('click', function(){ send({action:'no_op'}); });
+document.getElementById('btn-settings').addEventListener('click', function(){ send({type:'ui_action',action:'open_settings'}); });
 document.addEventListener('click', function(e){
   var dr=document.getElementById('drawer'), tb=document.getElementById('toolbar');
   if (activeDrawer && !dr.contains(e.target) && !tb.contains(e.target)) closeDrawer();
