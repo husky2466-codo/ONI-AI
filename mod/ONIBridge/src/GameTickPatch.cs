@@ -14,6 +14,11 @@ namespace ONIBridge
         private const float STATE_INTERVAL_SECONDS = 1.0f;
         private bool _autoloadAttempted = false;
 
+        private void OnDestroy()
+        {
+            _autoloadAttempted = false;
+        }
+
         private IEnumerator Start()
         {
             Debug.Log("[ONIBridge] BridgeTicker coroutine started.");
@@ -28,7 +33,8 @@ namespace ONIBridge
                 if (GameClock.Instance == null || ClusterManager.Instance == null) continue;
 
                 // Autoload: attempt once after world is confirmed loaded
-                if (!_autoloadAttempted)
+                if (!_autoloadAttempted
+                    && SaveLoader.Instance != null)
                 {
                     _autoloadAttempted = true;
                     AutoloadConfig.TryAutoload();
