@@ -8,7 +8,7 @@ scope: all inference nodes in the ONI-AI infrastructure
 -->
 
 ```yaml
-last_updated: "2026-04-04"
+last_updated: "2026-04-04T22:00"
 maintainer: "manual — update when serving state changes"
 nodes:
   - id: dgx-a
@@ -53,7 +53,7 @@ Inference stack: vLLM on :8000
 
 ---
 
-## Node: DGX Spark B — 192.168.3.20 (training / NemoClaw node)
+## Node: DGX Spark B — 192.168.3.20 (training / NemoClaw node, Ross's machine)
 
 Inference stack: vLLM on :8000, NemoClaw orchestration cluster on :8080
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Klei.AI;
 using UnityEngine;
 
 namespace ONIBridge
@@ -29,13 +30,19 @@ namespace ONIBridge
         {
             return new
             {
-                cycle      = TryGet("cycle",      GetCycle,      0),
-                time       = TryGet("time",        GetTime,       0f),
-                resources  = TryGet("resources",   GetResources,  (object)new {}),
-                duplicants = TryGet("duplicants",  GetDuplicants, new List<object>()),
-                buildings  = TryGet("buildings",   GetBuildings,  new List<object>()),
-                alerts     = TryGet("alerts",      GetAlerts,     new List<string>()),
-                tiles      = TryGet("tiles",       GetTiles,      (object)new {}),
+                cycle          = TryGet("cycle",          GetCycle,          0),
+                time           = TryGet("time",            GetTime,           0f),
+                resources      = TryGet("resources",       GetResources,      (object)new {}),
+                duplicants     = TryGet("duplicants",      GetDuplicants,     new List<object>()),
+                buildings      = TryGet("buildings",       GetBuildings,      new List<object>()),
+                storage        = TryGet("storage",         GetStorage,        new List<object>()),
+                printing_pod   = TryGet("printing_pod",    GetPrintingPod,    (object)new {}),
+                research       = TryGet("research",        GetResearch,       (object)new {}),
+                power_networks = TryGet("power_networks",  GetPowerNetworks,  new List<object>()),
+                rooms          = TryGet("rooms",           GetRooms,          new List<object>()),
+                alerts         = TryGet("alerts",          GetAlerts,         new List<string>()),
+                tiles          = TryGet("tiles",           GetTiles,          (object)new {}),
+                perimeter      = TryGet("perimeter",       GetPerimeter,      (object)null),
             };
         }
 
@@ -64,7 +71,6 @@ namespace ONIBridge
 
         private static object GetResources()
         {
-            // Use WorldInventory with accessible=true to include all tracked resources.
             WorldInventory inv = null;
             if (ClusterManager.Instance != null)
                 inv = ClusterManager.Instance.activeWorld?.worldInventory;
@@ -84,7 +90,7 @@ namespace ONIBridge
                 foreach (Edible edible in Components.Edibles)
                 {
                     if (edible != null)
-                        foodKcal += edible.Calories;
+                        foodKcal += edible.Calories / 1000f;  // internal unit is kcal*1000
                 }
             }
 
@@ -109,6 +115,9 @@ namespace ONIBridge
             };
         }
 
+        // ------------------------------------------------------------------ //
+        // P0: Full duplicant stats
+
         private static List<object> GetDuplicants()
         {
             var result = new List<object>();
@@ -119,18 +128,140 @@ namespace ONIBridge
                 if (minion == null) continue;
                 var pos = minion.transform.position;
 
-                // StressMonitor.Instance has a public 'stress' field (0–1 range)
+                // --- Type detection ---
+                // Bionic dupes have a RobotBatteryMonitor SMI (verify via decompile)
+                bool isBionic = minion.GetSMI<RobotBatteryMonitor.Instance>() != null;
+
+                // --- Stress (clamped) ---
                 float stress = 0f;
                 var stressMon = minion.GetSMI<StressMonitor.Instance>();
-                if (stressMon != null) stress = stressMon.stress.value;
+                if (stressMon != null)
+                {
+                    stress = stressMon.stress.value;
+                    if (stress < 0f) stress = 0f;
+                    if (stress > 1f) stress = 1f;
+                }
 
+                // --- Health ---
                 float health = 0f;
                 var hp = minion.GetComponent<Health>();
                 if (hp != null) health = hp.hitPoints;
 
+                // --- Current task + target location ---
                 string currentTask = "idle";
+                int taskX = -1, taskY = -1;
                 var chore = minion.GetComponent<ChoreDriver>()?.GetCurrentChore();
-                if (chore != null) currentTask = chore.choreType?.Id ?? "unknown";
+                if (chore != null)
+                {
+                    currentTask = chore.choreType?.Id ?? "unknown";
+                    try
+                    {
+                        var loc = chore.target?.GetComponent<KMonoBehaviour>()?.transform?.position;
+                        if (loc.HasValue) { taskX = (int)loc.Value.x; taskY = (int)loc.Value.y; }
+                    }
+                    catch { /* task location unavailable */ }
+                }
+
+                // --- Skills (attribute levels via Klei.AI.Attributes extension) ---
+                var skills = new Dictionary<string, int>();
+                try
+                {
+                    var attrs = minion.GetAttributes();
+                    if (attrs != null)
+                    {
+                        foreach (var attr in attrs.AttributeTable)
+                        {
+                            if (attr == null) continue;
+                            float val = attr.GetTotalValue();
+                            if (val > 0f)
+                                skills[attr.Id] = (int)val;
+                        }
+                    }
+                }
+                catch { /* attributes unavailable */ }
+
+                // --- Traits (Klei.AI.Traits component) ---
+                var traits = new List<string>();
+                try
+                {
+                    var traitComp = minion.GetComponent<Klei.AI.Traits>();
+                    if (traitComp != null)
+                    {
+                        foreach (string tid in traitComp.GetTraitIds())
+                            traits.Add(tid);
+                    }
+                }
+                catch { /* traits unavailable */ }
+
+                // --- Type-specific data ---
+                object typeData;
+                if (isBionic)
+                {
+                    float charge = 0f;
+                    try
+                    {
+                        var bat = minion.GetSMI<RobotBatteryMonitor.Instance>();
+                        if (bat != null && bat.amountInstance != null)
+                        {
+                            float max = bat.amountInstance.GetMax();
+                            if (max > 0f)
+                                charge = bat.amountInstance.value / max;
+                        }
+                    }
+                    catch { /* bionic battery unavailable */ }
+                    typeData = new { type = "bionic", charge_pct = System.Math.Round(charge, 3) };
+                }
+                else
+                {
+                    float hunger = 0f, bladder = 0f, stamina = 0f;
+                    int morale = 0;
+
+                    // CalorieMonitor: calories is AmountInstance; use .value / GetMax() for 0-1 range
+                    try
+                    {
+                        var calMon = minion.GetSMI<CalorieMonitor.Instance>();
+                        if (calMon != null && calMon.calories != null)
+                        {
+                            float max = calMon.calories.GetMax();
+                            if (max > 0f)
+                                hunger = 1f - (calMon.calories.value / max); // 0=full, 1=starving
+                        }
+                    }
+                    catch { }
+
+                    // BladderMonitor: bladder field is private; use Db.Get().Amounts.Bladder.Lookup
+                    try
+                    {
+                        var bladderAmt = Db.Get().Amounts.Bladder.Lookup(minion.gameObject);
+                        if (bladderAmt != null)
+                            bladder = bladderAmt.value / 100f; // 0-1 range (max is 100)
+                    }
+                    catch { }
+
+                    try
+                    {
+                        var fatigue = minion.GetSMI<StaminaMonitor.Instance>();
+                        if (fatigue != null) stamina = fatigue.stamina.value;
+                    }
+                    catch { }
+
+                    // Morale via QualityOfLife attribute — decompile needed for Attributes component
+                    // try
+                    // {
+                    //     var moraleAttr = minion.GetComponent<AttributeConverters>()...
+                    //     if (moraleAttr != null) morale = (int)moraleAttr.GetTotalValue();
+                    // }
+                    // catch { }
+
+                    typeData = new
+                    {
+                        type    = "organic",
+                        hunger  = System.Math.Round(hunger, 3),
+                        bladder = System.Math.Round(bladder, 3),
+                        stamina = System.Math.Round(stamina, 3),
+                        morale  = morale,
+                    };
+                }
 
                 result.Add(new
                 {
@@ -141,10 +272,18 @@ namespace ONIBridge
                     stress       = System.Math.Round(stress, 3),
                     health       = System.Math.Round(health, 1),
                     current_task = currentTask,
+                    task_x       = taskX,
+                    task_y       = taskY,
+                    skills       = skills,
+                    traits       = traits,
+                    dupe_data    = typeData,
                 });
             }
             return result;
         }
+
+        // ------------------------------------------------------------------ //
+        // P1: Buildings with machine state
 
         private static List<object> GetBuildings()
         {
@@ -156,16 +295,219 @@ namespace ONIBridge
                 if (b == null) continue;
                 var pos = b.transform.position;
                 var op  = b.GetComponent<Operational>();
+                bool isOp     = op != null && op.IsOperational;
+                bool isActive = op != null && op.IsActive;
+
+                // Input/output storage from machine's own Storage components
+                var inputContents  = new List<object>();
+                var outputContents = new List<object>();
+                try
+                {
+                    var storages = b.GetComponents<Storage>();
+                    if (storages != null && storages.Length > 0)
+                    {
+                        foreach (GameObject item in storages[0].items)
+                        {
+                            if (item == null) continue;
+                            var pe = item.GetComponent<PrimaryElement>();
+                            if (pe == null) continue;
+                            inputContents.Add(new
+                            {
+                                element = pe.Element?.id.ToString() ?? "Unknown",
+                                mass_kg = System.Math.Round(pe.Mass / 1000f, 3),
+                            });
+                        }
+                        if (storages.Length > 1)
+                        {
+                            foreach (GameObject item in storages[storages.Length - 1].items)
+                            {
+                                if (item == null) continue;
+                                var pe = item.GetComponent<PrimaryElement>();
+                                if (pe == null) continue;
+                                outputContents.Add(new
+                                {
+                                    element = pe.Element?.id.ToString() ?? "Unknown",
+                                    mass_kg = System.Math.Round(pe.Mass / 1000f, 3),
+                                });
+                            }
+                        }
+                    }
+                }
+                catch { /* storage unavailable for this building */ }
+
                 result.Add(new
                 {
-                    type        = b.Def?.PrefabID ?? "unknown",
-                    x           = (int)pos.x,
-                    y           = (int)pos.y,
-                    operational = op != null && op.IsOperational,
+                    type            = b.Def?.PrefabID ?? "unknown",
+                    x               = (int)pos.x,
+                    y               = (int)pos.y,
+                    operational     = isOp,
+                    working         = isActive,
+                    input_contents  = inputContents,
+                    output_contents = outputContents,
                 });
             }
             return result;
         }
+
+        // ------------------------------------------------------------------ //
+        // P1: Storage containers
+
+        private static List<object> GetStorage()
+        {
+            var result = new List<object>();
+            // Components.Storages may not exist — use FindObjectsOfType as fallback
+            // DECOMPILE: verify whether Components.Storages exists in ONI's Components registry
+            Storage[] storages;
+            try { storages = UnityEngine.Object.FindObjectsOfType<Storage>(); }
+            catch { return result; }
+            foreach (Storage storage in storages)
+            {
+                if (storage == null || storage.gameObject == null) continue;
+
+                // Only serialize buildings with named Storage containers
+                var building = storage.GetComponent<BuildingComplete>();
+                if (building == null) continue;
+
+                var pos = storage.transform.position;
+                var contents = new List<object>();
+
+                try
+                {
+                    foreach (GameObject item in storage.items)
+                    {
+                        if (item == null) continue;
+                        var pe = item.GetComponent<PrimaryElement>();
+                        if (pe == null) continue;
+                        contents.Add(new
+                        {
+                            element = pe.Element?.id.ToString() ?? "Unknown",
+                            mass_kg = System.Math.Round(pe.Mass / 1000f, 2),
+                        });
+                    }
+                }
+                catch { /* storage contents unavailable */ }
+
+                result.Add(new
+                {
+                    building_id = building.Def?.PrefabID ?? "unknown",
+                    x           = (int)pos.x,
+                    y           = (int)pos.y,
+                    capacity_kg = System.Math.Round(storage.capacityKg / 1000f, 1),
+                    contents    = contents,
+                });
+            }
+            return result;
+        }
+
+        // ------------------------------------------------------------------ //
+        // P0: Printing pod
+
+        private static object GetPrintingPod()
+        {
+            var immigration = Immigration.Instance;
+            if (immigration == null) return new { status = "unavailable" };
+
+            // timeBeforeSpawn: seconds until next print offer
+            // Verify field name via decompile — best-effort below
+            float timeRemaining = 0f;
+            try { timeRemaining = immigration.timeBeforeSpawn; }
+            catch { }
+
+            float cycleDuration = 600f; // seconds per cycle at 1x speed
+            float cyclesRemaining = timeRemaining / cycleDuration;
+
+            // Offer detection — requires decompile verification.
+            // Immigration.Instance.HasImmigrant() or similar.
+            // For now, return a best-effort status.
+            bool waitingForDecision = false;
+            var offers = new List<object>();
+            try
+            {
+                // This will be expanded after decompile confirms the API.
+                // For now surface the timer so AI knows when to expect a decision.
+                waitingForDecision = immigration.ImmigrantsAvailable;
+            }
+            catch { }
+
+            return new
+            {
+                status            = waitingForDecision ? "waiting_for_decision" : "cooldown",
+                cycles_until_next = System.Math.Round(cyclesRemaining, 1),
+                offers            = offers,
+            };
+        }
+
+        // ------------------------------------------------------------------ //
+        // P1: Research
+
+        private static object GetResearch()
+        {
+            var unlocked = new List<string>();
+            string currentTech = null;
+            float currentProgress = 0f;
+
+            var research = Research.Instance;
+            if (research == null) return new { unlocked, current_tech = currentTech, current_progress = currentProgress };
+
+            // Enumerate all techs to find completed ones
+            try
+            {
+                foreach (Tech tech in Db.Get().Techs.resources)
+                {
+                    if (tech == null) continue;
+                    var ti = research.GetTechInstance(tech.Id);
+                    if (ti != null && ti.IsComplete())
+                        unlocked.Add(tech.Id);
+                }
+            }
+            catch { }
+
+            // Active research
+            try
+            {
+                var active = research.GetActiveResearch();
+                if (active != null)
+                {
+                    currentTech     = active.tech?.Id;
+                    currentProgress = active.GetTotalPercentageComplete();
+                }
+            }
+            catch { }
+
+            return new
+            {
+                unlocked,
+                current_tech     = currentTech,
+                current_progress = System.Math.Round(currentProgress, 3),
+            };
+        }
+
+        // ------------------------------------------------------------------ //
+        // P2: Power networks (stub — requires decompile to implement fully)
+
+        private static List<object> GetPowerNetworks()
+        {
+            var result = new List<object>();
+            // Full implementation requires decompile of ElectricalUtility/CircuitManager.
+            // Returning empty list until decompile verification is complete.
+            // The existing Components.Generators sum in GetResources() provides a
+            // basic power overview until this is implemented.
+            return result;
+        }
+
+        // ------------------------------------------------------------------ //
+        // P2: Rooms (stub — requires decompile to implement fully)
+
+        private static List<object> GetRooms()
+        {
+            var result = new List<object>();
+            // Full implementation requires decompile of RoomProber.Instance and Room API.
+            // Returning empty list until decompile verification is complete.
+            return result;
+        }
+
+        // ------------------------------------------------------------------ //
+        // Alerts
 
         private static List<string> GetAlerts()
         {
@@ -206,44 +548,61 @@ namespace ONIBridge
             return alerts;
         }
 
+        // ------------------------------------------------------------------ //
+        // Tiles (follows active perimeter)
+
         private static object GetTiles()
         {
-            // Compute bounding box of all completed buildings
-            int minX = int.MaxValue, maxX = int.MinValue;
-            int minY = int.MaxValue, maxY = int.MinValue;
-            bool hasBuildings = false;
+            int wx, wy, ex, ey;
 
-            if (Components.BuildingCompletes != null)
+            // If a perimeter is active, center the tile window on it (+ 5 tile padding)
+            var perim = PerimeterManager.Active;
+            if (perim != null)
             {
-                foreach (BuildingComplete b in Components.BuildingCompletes)
-                {
-                    if (b == null) continue;
-                    var pos = b.transform.position;
-                    int bx = (int)pos.x, by = (int)pos.y;
-                    if (bx < minX) minX = bx;
-                    if (bx > maxX) maxX = bx;
-                    if (by < minY) minY = by;
-                    if (by > maxY) maxY = by;
-                    hasBuildings = true;
-                }
-            }
-
-            const int MARGIN = 15;
-            int wx, wy;
-            if (hasBuildings)
-            {
-                wx = minX - MARGIN;
-                wy = minY - MARGIN;
+                const int PAD = 5;
+                wx = perim.X1 - PAD;
+                wy = perim.Y1 - PAD;
+                ex = perim.X2 + PAD;
+                ey = perim.Y2 + PAD;
             }
             else
             {
-                // Fall back to 30×30 centered on world spawn
-                wx = Grid.WidthInCells / 2 - 15;
-                wy = Grid.HeightInCells / 2 - 15;
-            }
+                // Default: bounding box of all completed buildings + 15 tile margin
+                int minX = int.MaxValue, maxX = int.MinValue;
+                int minY = int.MaxValue, maxY = int.MinValue;
+                bool hasBuildings = false;
 
-            int ex = hasBuildings ? maxX + MARGIN : wx + 30;
-            int ey = hasBuildings ? maxY + MARGIN : wy + 30;
+                if (Components.BuildingCompletes != null)
+                {
+                    foreach (BuildingComplete b in Components.BuildingCompletes)
+                    {
+                        if (b == null) continue;
+                        var pos = b.transform.position;
+                        int bx = (int)pos.x, by = (int)pos.y;
+                        if (bx < minX) minX = bx;
+                        if (bx > maxX) maxX = bx;
+                        if (by < minY) minY = by;
+                        if (by > maxY) maxY = by;
+                        hasBuildings = true;
+                    }
+                }
+
+                const int MARGIN = 15;
+                if (hasBuildings)
+                {
+                    wx = minX - MARGIN;
+                    wy = minY - MARGIN;
+                    ex = maxX + MARGIN;
+                    ey = maxY + MARGIN;
+                }
+                else
+                {
+                    wx = Grid.WidthInCells / 2 - 15;
+                    wy = Grid.HeightInCells / 2 - 15;
+                    ex = wx + 30;
+                    ey = wy + 30;
+                }
+            }
 
             // Clamp to world bounds
             wx = System.Math.Max(0, wx);
@@ -274,10 +633,10 @@ namespace ONIBridge
             if (w <= 0 || h <= 0)
             {
                 Debug.LogWarning($"[ONIBridge] GetTiles: degenerate window w={w} h={h}, skipping");
-                return new { x = 0, y = 0, w = 0, h = 0, data = new System.Collections.Generic.List<object>() };
+                return new { x = 0, y = 0, w = 0, h = 0, data = new List<object>() };
             }
 
-            var data = new System.Collections.Generic.List<object>();
+            var data = new List<object>();
             for (int row = 0; row < h; row++)
             {
                 for (int col = 0; col < w; col++)
@@ -297,6 +656,14 @@ namespace ONIBridge
             }
 
             return new { x = wx, y = wy, w, h, data };
+        }
+
+        // ------------------------------------------------------------------ //
+        // Perimeter
+
+        private static object GetPerimeter()
+        {
+            return PerimeterManager.Serialize();
         }
     }
 }

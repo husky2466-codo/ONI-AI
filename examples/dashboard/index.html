@@ -2,827 +2,1138 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>ONI Bridge Dashboard</title>
+<title>ONI Dashboard</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
   background: #0d1117; color: #c9d1d9;
-  font-family: 'Courier New', monospace; font-size: 11px;
+  font-family: 'Courier New', monospace; font-size: 13px;
   height: 100vh; overflow: hidden;
   display: flex; flex-direction: column;
-  padding: 4px 6px 0 6px;
 }
 
-/* ── Top status bar ── */
+/* ── Status bar ── */
 #statusbar {
   display: flex; align-items: center; gap: 8px;
-  padding: 3px 6px; background: #161b22;
-  border: 1px solid #30363d; border-radius: 4px;
-  margin-bottom: 4px; flex-shrink: 0; font-size: 10px;
+  padding: 4px 10px; background: #161b22;
+  border-bottom: 1px solid #30363d; flex-shrink: 0; font-size: 11px;
+  color: #8b949e;
 }
 .dot { width: 7px; height: 7px; border-radius: 50%; background: #f85149; flex-shrink: 0; }
 .dot.on { background: #3fb950; }
 #statusbar .sep { color: #30363d; }
-#statusbar .chain { color: #484f58; }
 #statusbar .upd { margin-left: auto; color: #484f58; }
-#runner-bar { display: flex; align-items: center; gap: 6px; }
-#runner-pid { color: #484f58; }
-button.sm {
-  background: #21262d; border: 1px solid #30363d; color: #58a6ff;
-  padding: 1px 7px; border-radius: 3px; cursor: pointer;
-  font-family: inherit; font-size: 10px;
-}
-button.sm:hover { background: #30363d; }
-button.sm.danger { color: #f85149; }
-button.sm:disabled { opacity: 0.4; cursor: default; }
 
-/* ── Main grid ── */
-#main {
-  display: grid;
-  grid-template-columns: 140px 1fr 1fr 1fr;
-  grid-template-rows: auto auto 1fr;
-  gap: 4px;
-  flex: 1;
-  min-height: 0;
-  margin-bottom: 4px;
+/* ── Tab bar ── */
+#tabbar {
+  display: flex; background: #161b22;
+  border-bottom: 1px solid #30363d; flex-shrink: 0;
 }
+#tabbar button {
+  padding: 6px 14px; font-size: 11px; text-transform: uppercase;
+  letter-spacing: .5px; color: #8b949e; border: none; border-right: 1px solid #21262d;
+  background: transparent; cursor: pointer; font-family: inherit;
+  border-bottom: 2px solid transparent;
+}
+#tabbar button:hover { color: #c9d1d9; }
+#tabbar button.active { color: #58a6ff; border-bottom: 2px solid #58a6ff; background: #0d1117; }
 
-.card {
-  background: #161b22; border: 1px solid #30363d;
-  border-radius: 4px; padding: 5px 7px; overflow: hidden;
-}
-.card h2 {
-  font-size: 9px; text-transform: uppercase; letter-spacing: 1px;
-  color: #58a6ff; margin-bottom: 4px; padding-bottom: 3px;
-  border-bottom: 1px solid #21262d;
-}
+/* ── Tab bodies ── */
+#tab-content { flex: 1; overflow: hidden; min-height: 0; }
+.tab-body { display: none; height: 100%; overflow-y: auto; padding: 6px; }
+.tab-body.active { display: block; }
 
-/* ── Game overview card ── */
-#card-game { grid-column: 1; grid-row: 1 / 3; }
-.big-cycle { font-size: 32px; color: #58a6ff; font-weight: bold; line-height: 1; }
-.big-label { font-size: 9px; color: #484f58; margin-bottom: 6px; }
-.kv { display: flex; justify-content: space-between; padding: 1px 0; }
-.kv .k { color: #8b949e; }
-.kv .v { color: #e6edf3; font-weight: bold; }
-.kv .v.warn { color: #f0883e; }
-.kv .v.danger { color: #f85149; }
-.kv .v.ok { color: #3fb950; }
-
-/* ── Resources ── */
-#card-res { grid-column: 2; grid-row: 1; }
-#card-res .kv { border-bottom: 1px solid #21262d; }
-#card-res .kv:last-child { border-bottom: none; }
-
-/* ── AI Agent stats ── */
-#card-ai { grid-column: 3; grid-row: 1; }
-#last-action {
-  font-size: 10px; color: #3fb950; padding: 2px 0 3px;
-  border-bottom: 1px solid #21262d; margin-bottom: 3px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+/* ── Colony Health strip ── */
+#health-strip {
+  display: flex; align-items: center; gap: 18px;
+  padding: 5px 10px; background: #161b22;
+  border-top: 1px solid #30363d; flex-shrink: 0; font-size: 11px;
 }
-
-/* ── Alerts ── */
-#card-alerts { grid-column: 4; grid-row: 1; overflow-y: auto; }
-.alert-row { color: #f85149; padding: 1px 0; font-size: 10px; }
-.alert-row.warn { color: #f0883e; }
-
-/* ── Duplicants ── */
-#card-dups { grid-column: 1 / 3; grid-row: 3; overflow-y: auto; }
-.dup-row { display: flex; gap: 8px; align-items: baseline; padding: 2px 0; border-bottom: 1px solid #21262d; }
-.dup-row:last-child { border-bottom: none; }
-.dup-name { color: #ffa657; font-weight: bold; width: 80px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.dup-stat { color: #8b949e; white-space: nowrap; }
-.dup-stress-hi { color: #f85149; }
-.dup-stress-med { color: #f0883e; }
-.dup-task { color: #58a6ff; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-/* ── Buildings ── */
-#card-blds { grid-column: 3 / 5; grid-row: 2 / 4; overflow-y: auto; }
-.bld-row { display: flex; gap: 6px; padding: 1px 0; border-bottom: 1px solid #21262d; }
-.bld-row:last-child { border-bottom: none; }
-.bld-type { color: #58a6ff; width: 140px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bld-pos { color: #484f58; width: 80px; flex-shrink: 0; }
-.bld-status { font-size: 10px; }
-.bld-ok { color: #3fb950; }
-.bld-off { color: #f85149; }
-
-/* ── Log ── */
-#card-log { grid-column: 2 / 3; grid-row: 2; overflow-y: auto; }
-.log-entry { padding: 1px 0; color: #8b949e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.log-ok   { color: #3fb950; }
-.log-fail { color: #f85149; }
-.log-info { color: #58a6ff; }
-
-.muted { color: #484f58; font-style: italic; }
-
-/* ── Drawer (pops up above toolbar) ── */
-#drawer {
-  position: fixed; bottom: 52px; left: 6px; width: 260px;
-  max-height: calc(100vh - 80px);
-  background: #161b22; border: 1px solid #58a6ff;
-  border-radius: 6px 6px 0 0; z-index: 200;
-  display: none; flex-direction: column; overflow: hidden;
-}
-#drawer.open { display: flex; }
-#drawer-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 5px 10px; background: #21262d; border-bottom: 1px solid #30363d; flex-shrink: 0;
-}
-#drawer-title { color: #58a6ff; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
-#drawer-close { background: none; border: none; color: #8b949e; cursor: pointer; font-size: 14px; line-height: 1; }
-#drawer-coords {
-  padding: 5px 10px; background: #0d1117; border-bottom: 1px solid #21262d;
-  display: flex; gap: 6px; align-items: center; flex-shrink: 0;
-}
-#drawer-coords label { color: #8b949e; }
-#drawer-coords input {
-  background: #21262d; border: 1px solid #58a6ff; color: #e6edf3;
-  padding: 2px 5px; border-radius: 3px; width: 55px; font-family: inherit; font-size: 11px;
-}
-#drawer-list { overflow-y: auto; flex: 1; }
-.dsec-hdr {
-  padding: 4px 10px 2px; color: #ffa657; font-size: 10px;
-  text-transform: uppercase; background: #0d1117;
-  border-bottom: 1px solid #21262d; position: sticky; top: 0;
-}
-.ditem {
-  display: flex; align-items: center; gap: 6px; padding: 5px 10px;
-  border-bottom: 1px solid #0d1117; cursor: default;
-}
-.ditem:hover { background: #21262d; }
-.ditem .di-icon { font-size: 14px; flex-shrink: 0; }
-.ditem .di-info { flex: 1; }
-.ditem .di-name { color: #c9d1d9; font-size: 11px; }
-.ditem .di-id   { color: #484f58; font-size: 9px; }
-.ditem .di-btn {
-  background: #21262d; border: 1px solid #58a6ff; color: #58a6ff;
-  padding: 2px 6px; border-radius: 3px; cursor: pointer;
-  font-family: inherit; font-size: 10px; flex-shrink: 0;
-}
-.ditem .di-btn:hover { background: #30363d; }
-.d-action-row { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-bottom: 1px solid #0d1117; }
-.d-action-row .di-lbl { flex: 1; color: #c9d1d9; }
+#health-strip .hs-label { color: #484f58; text-transform: uppercase; letter-spacing: .5px; font-size: 10px; }
+#health-strip .hs-val { font-weight: bold; }
+#health-strip .hs-val.ok { color: #3fb950; }
+#health-strip .hs-val.neg { color: #f85149; }
+.obligation { background: #2d1f1f; color: #f0883e; padding: 2px 7px; border-radius: 2px; font-size: 10px; }
+#health-strip .phase-info { margin-left: auto; color: #484f58; font-size: 11px; }
 
 /* ── Toolbar ── */
 #toolbar {
-  position: fixed; bottom: 0; left: 0; right: 0; height: 48px;
+  display: flex; align-items: center; padding: 5px 8px;
   background: #0d1117; border-top: 1px solid #30363d;
-  display: flex; align-items: center; padding: 0 6px; gap: 3px;
-  z-index: 100; overflow-x: auto; flex-shrink: 0;
+  gap: 4px; flex-shrink: 0;
 }
-.tb-btn, .tb-action {
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  min-width: 44px; height: 40px; background: #161b22; border: 1px solid #30363d;
-  border-radius: 3px; cursor: pointer; padding: 0 4px; gap: 1px; flex-shrink: 0;
-  font-family: inherit; color: #c9d1d9; transition: background 0.1s, border-color 0.1s;
-}
-.tb-btn:hover  { background: #21262d; border-color: #58a6ff; }
-.tb-btn.active { background: #21262d; border-color: #58a6ff; color: #58a6ff; }
-.tb-action:hover  { background: #21262d; border-color: #a371f7; }
-.tb-action.active { background: #21262d; border-color: #a371f7; }
-.tb-action.danger:hover { background: #1f1014; border-color: #f85149; }
-.tb-icon  { font-size: 15px; line-height: 1; }
-.tb-label { font-size: 8px; text-transform: uppercase; color: #8b949e; letter-spacing: 0.3px; }
-.tb-sep   { width: 1px; height: 32px; background: #30363d; flex-shrink: 0; margin: 0 2px; }
-/* ── Speed controls (right side of toolbar) ── */
-.speed-group {
-  display: flex;
-  border: 1px solid #30363d;
-  border-radius: 4px;
-  overflow: hidden;
-  flex-shrink: 0;
-  margin: 0 4px;
-}
-.tb-speed-btn {
-  background: #21262d;
-  color: #8b949e;
-  border: none;
-  border-right: 1px solid #30363d;
-  padding: 3px 9px;
-  cursor: pointer;
+.tb-btn {
+  background: #161b22; border: 1px solid #30363d; border-radius: 3px;
+  padding: 3px 8px; font-size: 10px; color: #8b949e; cursor: pointer;
   font-family: inherit;
-  font-size: 11px;
-  transition: background 0.1s;
 }
-.tb-speed-btn:last-child { border-right: none; }
-.tb-speed-btn:hover { background: #30363d; color: #c9d1d9; }
-.tb-speed-btn.active { background: #1f3a2b; color: #3fb950; font-weight: bold; }
-.tb-speed-btn.paused { background: #2d1f1f; color: #f85149; }
-#tb-speed-status {
-  font-size: 10px;
-  color: #3fb950;
-  white-space: nowrap;
-  flex-shrink: 0;
-  margin-right: 4px;
+.tb-btn:hover { background: #21262d; color: #c9d1d9; }
+.speed-group { display: flex; border: 1px solid #30363d; border-radius: 3px; overflow: hidden; margin-left: auto; }
+.spd {
+  background: #21262d; color: #8b949e; padding: 3px 9px;
+  font-size: 11px; border-right: 1px solid #30363d; cursor: pointer;
 }
-#tb-speed-status.paused { color: #f85149; }
+.spd:last-child { border-right: none; }
+.spd.active { background: #1f3a2b; color: #3fb950; font-weight: bold; }
+
+/* ── Shared card styles ── */
+.card {
+  background: #161b22; border: 1px solid #30363d;
+  border-radius: 4px; padding: 8px 10px;
+}
+.card h3 {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 1px;
+  color: #58a6ff; margin-bottom: 6px; padding-bottom: 4px;
+  border-bottom: 1px solid #21262d;
+}
+.kv { display: flex; justify-content: space-between; padding: 2px 0; }
+.kv .k { color: #8b949e; font-size: 12px; }
+.kv .v { font-weight: bold; font-size: 12px; color: #c9d1d9; }
+.kv .v.ok { color: #3fb950; }
+.kv .v.warn { color: #f0883e; }
+.kv .v.bad { color: #f85149; }
+.progress-track { height: 6px; background: #21262d; border-radius: 3px; overflow: hidden; margin: 4px 0; }
+.progress-fill { height: 100%; border-radius: 3px; background: #58a6ff; }
+
+/* ── Duplicants ── */
+.dupe-card {
+  background: #161b22; border: 1px solid #30363d; border-radius: 4px;
+  padding: 10px 12px; margin-bottom: 8px;
+}
+.dupe-header { display: flex; align-items: center; gap: 8px; margin-bottom:6px; }
+.dupe-name { font-size: 14px; font-weight: bold; color: #c9d1d9; flex:1; }
+.dupe-badge {
+  font-size: 9px; padding: 1px 6px; border-radius: 2px;
+  background: #21262d; color: #8b949e; border: 1px solid #30363d;
+}
+.dupe-badge.bionic { background: #1a2332; color: #58a6ff; border-color: #58a6ff; }
+.dupe-task { font-size: 11px; color: #484f58; }
+.bar-row { display: flex; align-items: center; gap: 6px; margin: 3px 0; }
+.bar-label { font-size: 10px; color: #484f58; width: 52px; flex-shrink:0; }
+.bar-track { flex:1; height: 6px; background: #21262d; border-radius: 3px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 3px; }
+.bar-fill.stress { background: #f85149; }
+.bar-fill.health { background: #3fb950; }
+.bar-fill.hunger { background: #f0883e; }
+.bar-fill.bladder { background: #1f6feb; }
+.bar-fill.charge { background: #a371f7; }
+.bar-val { font-size: 10px; color: #8b949e; width: 32px; text-align:right; flex-shrink:0; }
+.attr-grid { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.attr-chip {
+  background: #21262d; border: 1px solid #30363d; border-radius: 3px;
+  padding: 2px 6px; font-size: 10px; color: #8b949e;
+}
+.trait-list { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.trait-pill {
+  background: #1a2332; border: 1px solid #30363d; border-radius: 10px;
+  padding: 1px 7px; font-size: 10px; color: #58a6ff;
+}
+
+/* ── Research ── */
+.tech-icon {
+  width: 52px; height: 52px; background: #21262d; border: 1px solid #30363d;
+  border-radius: 4px; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; cursor: pointer; position: relative; gap: 2px;
+}
+.tech-icon:hover, .tech-icon.selected { border-color: #58a6ff; background: #1a2332; }
+.tech-icon .ti-emoji { font-size: 20px; line-height: 1; }
+.tech-icon .ti-name { font-size: 8px; color: #8b949e; text-align: center; padding: 0 2px; line-height: 1.2; }
+.tech-icon .ti-check { position: absolute; top: 2px; right: 3px; color: #3fb950; font-size: 9px; }
+.tech-detail {
+  background: #0d1117; border: 1px solid #58a6ff; border-radius: 4px;
+  padding: 8px 10px; margin-top: 6px; font-size: 11px; display: none;
+}
+.tech-detail.visible { display: block; }
+.offer-card { background: #0d1117; border: 1px solid #30363d; border-radius: 3px; padding: 6px 8px; margin: 4px 0; }
+.offer-name { color: #ffa657; font-weight: bold; font-size: 13px; margin-bottom: 3px; }
+.offer-detail { color: #8b949e; font-size: 11px; }
+
+/* ── Log ── */
+.log-entry { display: flex; gap: 8px; padding: 3px 0; border-bottom: 1px solid #0d1117; font-size: 11px; align-items: baseline; }
+.log-ts { color: #484f58; flex-shrink: 0; width: 70px; font-size: 10px; }
+.log-badge { flex-shrink: 0; width: 60px; font-size: 10px; padding: 1px 4px; border-radius: 2px; text-align: center; }
+.lb-action   { background: #1a2332; color: #58a6ff; }
+.lb-ack-ok   { background: #1f3a2b; color: #3fb950; }
+.lb-ack-fail { background: #2d1f1f; color: #f85149; }
+.lb-reward   { background: #1f1a2e; color: #a371f7; }
+.lb-agent    { background: #21262d; color: #8b949e; }
+.lb-error    { background: #2d1f1f; color: #f85149; }
+.lb-event    { background: #2d2210; color: #f0883e; }
+.log-msg { flex: 1; color: #c9d1d9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.log-msg.muted { color: #484f58; }
+.fpill { padding: 2px 8px; border-radius: 10px; font-size: 10px; cursor: pointer; border: 1px solid #30363d; background: #21262d; color: #8b949e; }
+.fpill.on { border-color: #58a6ff; color: #58a6ff; background: #1a2332; }
+
+/* ── Config ── */
+.profile-row {
+  display: flex; align-items: center; gap: 8px; padding: 6px 8px;
+  background: #0d1117; border: 1px solid #30363d; border-radius: 4px;
+  cursor: pointer; margin-bottom: 4px;
+}
+.profile-row:hover { border-color: #484f58; }
+.profile-row.selected { border-color: #58a6ff; background: #1a2332; }
+.profile-dot { width: 8px; height: 8px; border-radius: 50%; border: 2px solid #484f58; flex-shrink: 0; }
+.profile-dot.active { border-color: #3fb950; background: #3fb950; }
+.profile-info { flex: 1; display: flex; flex-direction: column; gap: 1px; }
+.profile-name-text { font-size: 12px; color: #c9d1d9; }
+.profile-sub { font-size: 10px; color: #484f58; }
+.profile-active-badge {
+  font-size: 9px; color: #3fb950; background: #1f3a2b;
+  border: 1px solid #2ea043; padding: 1px 5px; border-radius: 2px;
+}
+.cfg-field { display: flex; flex-direction: column; gap: 3px; margin-bottom: 7px; }
+.cfg-field label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #484f58; }
+.cfg-field input, .cfg-field select {
+  background: #0d1117; border: 1px solid #30363d; color: #c9d1d9;
+  padding: 5px 8px; border-radius: 3px; font-family: inherit; font-size: 12px; outline: none;
+}
+.cfg-field input:focus { border-color: #58a6ff; }
+.conn-badge {
+  display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px;
+  border-radius: 10px; font-size: 10px; margin-bottom: 8px;
+}
+.conn-badge.ok { background: #1f3a2b; color: #3fb950; border: 1px solid #2ea043; }
+.conn-badge.err { background: #2d1f1f; color: #f85149; border: 1px solid #f85149; }
+.conn-badge.idle { background: #21262d; color: #8b949e; border: 1px solid #30363d; }
+.cfg-btn {
+  padding: 4px 12px; border-radius: 3px; cursor: pointer;
+  font-family: inherit; font-size: 11px; border: 1px solid;
+}
+.cfg-btn.primary { background: #1a2332; border-color: #58a6ff; color: #58a6ff; }
+.cfg-btn.ok { background: #1f3a2b; border-color: #2ea043; color: #3fb950; }
+.cfg-btn.danger { background: #2d1f1f; border-color: #f85149; color: #f85149; }
+.cfg-btn.neutral { background: #21262d; border-color: #30363d; color: #8b949e; }
+.cfg-note { font-size: 10px; color: #484f58; font-style: italic; margin-top: 4px; }
+.cfg-divider { border-top: 1px solid #21262d; margin: 8px 0; }
 </style>
 </head>
 <body>
 
 <!-- Status bar -->
 <div id="statusbar">
-  <div class="dot" id="dot"></div>
-  <span id="status-text">Connecting...</span>
+  <span class="dot" id="dot-relay"></span>
+  <span id="relay-label" style="color:#c9d1d9">Connecting...</span>
   <span class="sep">|</span>
-  <span class="chain">dashboard:8181 &rarr; relay:8182 &rarr; game:9999</span>
+  <span id="chain-label" class="chain">dashboard:8181 → relay:8182 → game:9999</span>
   <span class="sep">|</span>
-  <div id="runner-bar">
-    <div class="dot" id="runner-dot"></div>
-    <span id="runner-status-text">Runner: stopped</span>
-    <span id="runner-pid"></span>
-    <button class="sm" id="btn-start-runner" onclick="runnerStart()">Start</button>
-    <button class="sm danger" id="btn-stop-runner" onclick="runnerStop()">Stop</button>
-  </div>
-  <span class="upd" id="last-update"></span>
+  <span class="dot" id="dot-runner"></span>
+  <span id="runner-label">Runner: stopped</span>
+  <span class="upd" id="upd-label"></span>
 </div>
 
-<!-- Main grid -->
-<div id="main">
+<!-- Tab bar -->
+<div id="tabbar">
+  <button class="active" data-tab="colony" onclick="switchTab('colony')">🏠 Colony</button>
+  <button data-tab="duplicants" onclick="switchTab('duplicants')">👥 Duplicants</button>
+  <button data-tab="research" onclick="switchTab('research')">🔬 Research</button>
+  <button data-tab="perimeter" onclick="switchTab('perimeter')">📐 Perimeter</button>
+  <button data-tab="log" onclick="switchTab('log')">📋 Log</button>
+  <button data-tab="config" onclick="switchTab('config')">⚙️ Config</button>
+</div>
 
-  <!-- Game overview -->
-  <div class="card" id="card-game">
-    <h2>Game</h2>
-    <div class="big-cycle" id="cycle">—</div>
-    <div class="big-label">cycle</div>
-    <div class="kv"><span class="k">Time</span><span class="v" id="time">—</span></div>
-    <div class="kv"><span class="k">Dupes</span><span class="v" id="dup-count">—</span></div>
-    <div class="kv"><span class="k">Buildings</span><span class="v" id="bld-count">—</span></div>
-    <div class="kv"><span class="k">Alerts</span><span class="v" id="alert-count">—</span></div>
-    <div style="margin-top:6px;border-top:1px solid #21262d;padding-top:4px">
-      <div class="kv" style="margin-bottom:2px"><span class="k" style="color:#58a6ff">AI Stats</span></div>
-      <div class="kv"><span class="k">Calls</span><span class="v" id="ai-calls">—</span></div>
-      <div class="kv"><span class="k">In tokens</span><span class="v" id="ai-in">—</span></div>
-      <div class="kv"><span class="k">Out tokens</span><span class="v" id="ai-out">—</span></div>
-      <div class="kv"><span class="k">Cost</span><span class="v" id="ai-cost">—</span></div>
-      <div class="kv"><span class="k">Tick</span><span class="v" id="ai-tick">—</span></div>
+<!-- Tab content -->
+<div id="tab-content">
+  <div class="tab-body active" id="tab-colony"><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;height:100%">
+  <!-- Left column -->
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <div class="card">
+      <h3>Game</h3>
+      <div style="font-size:32px;color:#58a6ff;font-weight:bold;line-height:1" id="col-cycle">—</div>
+      <div style="font-size:9px;color:#484f58;margin-bottom:6px">CYCLE</div>
+      <div class="kv"><span class="k">Time</span><span class="v" id="col-time">—</span></div>
+      <div class="kv"><span class="k">Phase</span><span class="v" id="col-phase">—</span></div>
+      <div class="kv"><span class="k">Speed</span><span class="v" id="col-speed">—</span></div>
+    </div>
+    <div class="card">
+      <h3>Resources</h3>
+      <div id="col-resources"></div>
+    </div>
+  </div>
+  <!-- Right column -->
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <div class="card">
+      <h3>Alerts</h3>
+      <div id="col-alerts" style="font-size:12px;color:#484f58">No alerts</div>
+    </div>
+    <div class="card" style="flex:1">
+      <h3>Tile Window</h3>
+      <div id="col-tile-pos" style="font-size:10px;color:#484f58;margin-bottom:4px"></div>
+      <canvas id="col-tile-canvas" style="image-rendering:pixelated;width:100%;max-width:256px"></canvas>
+    </div>
+  </div>
+</div></div>
+  <div class="tab-body" id="tab-duplicants"><div id="dupe-list" style="padding:2px"></div></div>
+  <div class="tab-body" id="tab-research"><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;height:100%">
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <div class="card">
+      <h3>Active Research</h3>
+      <div class="kv"><span class="k">Tech</span><span class="v" id="res-tech" style="color:#58a6ff">—</span></div>
+      <div class="progress-track"><div class="progress-fill" id="res-progress-fill" style="width:0%"></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:#484f58">
+        <span id="res-pct">0%</span><span id="res-type"></span>
+      </div>
+    </div>
+    <div class="card" style="flex:1">
+      <h3 id="res-unlocked-header">Unlocked Technologies (0)</h3>
+      <div id="res-icon-grid" style="display:flex;flex-wrap:wrap;gap:6px;padding:4px 0"></div>
+      <div class="tech-detail" id="res-detail-box">
+        <div style="color:#58a6ff;font-weight:bold;font-size:13px;margin-bottom:4px" id="res-detail-name"></div>
+        <div style="color:#8b949e;padding:1px 0">Unlocked: <span style="color:#c9d1d9" id="res-detail-cycle"></span></div>
+        <div style="color:#484f58;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin:5px 0 2px">Buildings</div>
+        <div id="res-detail-buildings"></div>
+      </div>
+    </div>
+  </div>
+  <div class="card" id="pod-card">
+    <h3>Printing Pod</h3>
+    <div id="pod-status" style="font-size:13px;font-weight:bold;padding:4px 0 6px;color:#8b949e">—</div>
+    <div class="kv"><span class="k">Timer</span><span class="v" id="pod-timer">—</span></div>
+    <div id="pod-offers" style="margin-top:8px"></div>
+  </div>
+</div></div>
+  <div class="tab-body" id="tab-perimeter"><div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto 1fr;gap:6px;height:100%">
+  <div class="card" style="grid-column:1;grid-row:1/3;overflow-y:auto">
+    <h3 id="peri-title">Active Perimeter</h3>
+    <div class="kv"><span class="k">Goal</span><span class="v" id="peri-goal" style="color:#a371f7">—</span></div>
+    <div class="kv"><span class="k">Bounds</span><span class="v" id="peri-bounds">—</span></div>
+    <div class="kv"><span class="k">Blueprint</span><span class="v" id="peri-blueprint">—</span></div>
+    <div class="progress-track"><div class="progress-fill" id="peri-prog-fill" style="width:0%"></div></div>
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:#484f58;margin-bottom:8px">
+      <span id="peri-pct">0%</span><span id="peri-placed"></span>
+    </div>
+    <div id="peri-tasks"></div>
+    <div id="peri-prereqs" style="margin-top:8px"></div>
+  </div>
+  <div class="card" style="grid-column:2;grid-row:1">
+    <h3>Reward Tracking</h3>
+    <div class="kv"><span class="k">Tick reward</span><span class="v ok" id="rew-tick">—</span></div>
+    <div class="kv"><span class="k">Episode total</span><span class="v ok" id="rew-episode">—</span></div>
+    <div class="kv"><span class="k">Survival layer</span><span class="v ok" id="rew-survival">—</span></div>
+    <div class="kv"><span class="k">Progress layer</span><span class="v ok" id="rew-progress">—</span></div>
+    <div class="kv"><span class="k">Event layer</span><span class="v" id="rew-event">—</span></div>
+    <div style="margin-top:8px">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#484f58;margin-bottom:4px">Open Events</div>
+      <div id="rew-open-events"></div>
+    </div>
+  </div>
+  <div class="card" style="grid-column:2;grid-row:2;overflow-y:auto">
+    <h3>Perimeter History</h3>
+    <div id="peri-history"></div>
+  </div>
+</div></div>
+  <div class="tab-body" id="tab-log"><div style="display:grid;grid-template-columns:1fr 200px;gap:6px;height:100%">
+  <div class="card" style="display:flex;flex-direction:column">
+    <h3>Session Feed</h3>
+    <div id="log-filters" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">
+      <span class="fpill on" data-filter="all" onclick="toggleFilter(this)">All</span>
+      <span class="fpill on" data-filter="action" onclick="toggleFilter(this)">Actions</span>
+      <span class="fpill on" data-filter="ack" onclick="toggleFilter(this)">ACKs</span>
+      <span class="fpill on" data-filter="reward" onclick="toggleFilter(this)">Rewards</span>
+      <span class="fpill on" data-filter="event" onclick="toggleFilter(this)">Events</span>
+      <span class="fpill on" data-filter="agent" onclick="toggleFilter(this)">Agent</span>
+      <span class="fpill on" data-filter="error" onclick="toggleFilter(this)">Errors</span>
+    </div>
+    <div id="log-feed" style="overflow-y:auto;flex:1"></div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <div class="card">
+      <h3>Session Stats</h3>
+      <div class="kv"><span class="k">Ticks</span><span class="v" id="ls-ticks">0</span></div>
+      <div class="kv"><span class="k">Actions</span><span class="v" id="ls-actions">0</span></div>
+      <div class="kv"><span class="k">ACK ok</span><span class="v ok" id="ls-ack-ok">0</span></div>
+      <div class="kv"><span class="k">ACK fail</span><span class="v warn" id="ls-ack-fail">0</span></div>
+      <div class="kv"><span class="k">No-ops</span><span class="v" id="ls-noops">0</span></div>
+      <div class="kv"><span class="k">Errors</span><span class="v bad" id="ls-errors">0</span></div>
+    </div>
+    <div class="card">
+      <h3>Episode</h3>
+      <div class="kv"><span class="k">Phase</span><span class="v" id="ls-phase">—</span></div>
+      <div class="kv"><span class="k">Cycle</span><span class="v" id="ls-cycle">—</span></div>
+      <div class="kv"><span class="k">Reward</span><span class="v ok" id="ls-reward">—</span></div>
+      <div class="kv"><span class="k">Deaths</span><span class="v ok" id="ls-deaths">0</span></div>
+    </div>
+  </div>
+</div></div>
+  <div class="tab-body" id="tab-config"><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;height:100%;align-content:start">
+  <!-- Left: LLM profiles -->
+  <div class="card">
+    <h3>LLM Backend Profiles</h3>
+    <div id="cfg-profile-list"></div>
+    <button class="cfg-btn neutral" style="margin:6px 0;width:100%" onclick="cfgAddProfile()">+ Add Profile</button>
+    <div class="cfg-divider"></div>
+    <div id="cfg-edit-section" style="display:none">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#58a6ff;margin-bottom:6px" id="cfg-edit-label">Edit Profile</div>
+      <div class="cfg-field"><label>Profile Name</label><input type="text" id="cfg-f-name"></div>
+      <div class="cfg-field"><label>Endpoint URL</label><input type="text" id="cfg-f-url" placeholder="http://host:port/v1"></div>
+      <div class="cfg-field"><label>Model</label><input type="text" id="cfg-f-model" placeholder="org/model-name"></div>
+      <div class="cfg-field"><label>API Key (optional)</label><input type="text" id="cfg-f-key" placeholder="leave blank if not required"></div>
+      <div class="cfg-field">
+        <label>Vision Pipeline</label>
+        <select id="cfg-f-vision">
+          <option value="false">Disabled — text state only</option>
+          <option value="true">Enabled — attach screenshot each tick</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px;align-items:center">
+        <button class="cfg-btn ok" onclick="cfgSetActive()">Set Active</button>
+        <button class="cfg-btn primary" onclick="cfgSaveProfile()">Save</button>
+        <button class="cfg-btn danger" style="margin-left:auto" onclick="cfgDeleteProfile()">Delete</button>
+      </div>
+      <div id="cfg-conn-badge" class="conn-badge idle" style="margin-top:8px">● Not tested</div>
     </div>
   </div>
 
-  <!-- Resources -->
-  <div class="card" id="card-res">
-    <h2>Resources</h2>
-    <div class="kv"><span class="k">Oxygen</span><span class="v" id="oxygen">—</span></div>
-    <div class="kv"><span class="k">CO2</span><span class="v" id="co2">—</span></div>
-    <div class="kv"><span class="k">Water</span><span class="v" id="water">—</span></div>
-    <div class="kv"><span class="k">Food</span><span class="v" id="food">—</span></div>
-    <div class="kv"><span class="k">Power</span><span class="v" id="power">—</span></div>
+  <!-- Right: connections -->
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <div class="card">
+      <h3>Game Connection (ONIBridge TCP)</h3>
+      <div id="cfg-game-badge" class="conn-badge idle">● Unknown</div>
+      <div class="cfg-field"><label>Host</label><input type="text" id="cfg-game-host" value="10.0.0.10"></div>
+      <div class="cfg-field"><label>Port</label><input type="text" id="cfg-game-port" value="9999"></div>
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <button class="cfg-btn ok" onclick="cfgApplyGame()">Apply</button>
+        <button class="cfg-btn neutral" onclick="cfgTestGame()">Test</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Runner Relay (WebSocket)</h3>
+      <div id="cfg-relay-badge" class="conn-badge idle">● Unknown</div>
+      <div class="cfg-field"><label>Relay Port</label><input type="text" id="cfg-relay-port" value="8182"></div>
+      <p class="cfg-note">Port change takes effect on next runner start.</p>
+    </div>
+    <div class="card">
+      <h3>Runner Process</h3>
+      <div id="cfg-runner-badge" class="conn-badge idle">● Stopped</div>
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <button class="cfg-btn neutral" onclick="cfgRestartRunner()">Restart</button>
+        <button class="cfg-btn danger" onclick="cfgStopRunner()">Stop</button>
+      </div>
+      <p class="cfg-note">Restart picks up all config changes immediately.</p>
+    </div>
   </div>
-
-  <!-- AI last action -->
-  <div class="card" id="card-ai">
-    <h2>AI Last Action</h2>
-    <div id="last-action" class="muted">waiting...</div>
-    <div class="kv"><span class="k">action</span><span class="v" id="la-action">—</span></div>
-    <div class="kv"><span class="k">building</span><span class="v" id="la-building">—</span></div>
-    <div class="kv"><span class="k">cell</span><span class="v" id="la-cell">—</span></div>
-  </div>
-
-  <!-- Alerts -->
-  <div class="card" id="card-alerts">
-    <h2>Alerts</h2>
-    <div id="alerts"><span class="muted">None</span></div>
-  </div>
-
-  <!-- Log -->
-  <div class="card" id="card-log">
-    <h2>Action Log</h2>
-    <div id="log"></div>
-  </div>
-
-  <!-- Duplicants -->
-  <div class="card" id="card-dups">
-    <h2>Duplicants</h2>
-    <div id="duplicants"><span class="muted">No data</span></div>
-  </div>
-
-  <!-- Buildings -->
-  <div class="card" id="card-blds">
-    <h2>Buildings (<span id="bld-count2">0</span>)</h2>
-    <div id="buildings"><span class="muted">No data</span></div>
-  </div>
-
+</div></div>
 </div>
 
-<!-- Drawer -->
-<div id="drawer">
-  <div id="drawer-header">
-    <span id="drawer-title">Buildings</span>
-    <button id="drawer-close" onclick="closeDrawer()">&#x2715;</button>
-  </div>
-  <div id="drawer-coords">
-    <label>X</label><input type="number" id="d-x" value="122">
-    <label>Y</label><input type="number" id="d-y" value="210">
-  </div>
-  <div id="drawer-list"></div>
+<!-- Colony Health strip -->
+<div id="health-strip">
+  <span class="hs-label">Colony Health</span>
+  <span>Tick: <span class="hs-val ok" id="hs-tick">—</span></span>
+  <span>Episode: <span class="hs-val ok" id="hs-episode">—</span></span>
+  <span>Survival: <span class="hs-val ok" id="hs-survival">—</span></span>
+  <span id="hs-obligations"></span>
+  <span class="phase-info" id="hs-phase"></span>
 </div>
 
 <!-- Toolbar -->
 <div id="toolbar">
-  <button class="tb-btn" data-drawer="base"        title="Base">        <span class="tb-icon">🏗️</span><span class="tb-label">Base</span></button>
-  <button class="tb-btn" data-drawer="oxygen"      title="Oxygen">      <span class="tb-icon">💨</span><span class="tb-label">O2</span></button>
-  <button class="tb-btn" data-drawer="power"       title="Power">       <span class="tb-icon">⚡</span><span class="tb-label">Power</span></button>
-  <button class="tb-btn" data-drawer="food"        title="Food">        <span class="tb-icon">🍖</span><span class="tb-label">Food</span></button>
-  <button class="tb-btn" data-drawer="plumbing"    title="Plumbing">    <span class="tb-icon">🚰</span><span class="tb-label">Plumb</span></button>
-  <button class="tb-btn" data-drawer="ventilation" title="Ventilation"> <span class="tb-icon">🌀</span><span class="tb-label">Vent</span></button>
-  <button class="tb-btn" data-drawer="medicine"    title="Medicine">    <span class="tb-icon">💊</span><span class="tb-label">Med</span></button>
-  <button class="tb-btn" data-drawer="furniture"   title="Furniture">   <span class="tb-icon">🛏️</span><span class="tb-label">Furn</span></button>
-  <button class="tb-btn" data-drawer="stations"    title="Stations">    <span class="tb-icon">🔬</span><span class="tb-label">Stn</span></button>
-  <button class="tb-btn" data-drawer="utilities"   title="Utilities">   <span class="tb-icon">🔧</span><span class="tb-label">Utils</span></button>
-  <button class="tb-btn" data-drawer="automation"  title="Automation">  <span class="tb-icon">🤖</span><span class="tb-label">Auto</span></button>
-  <div class="tb-sep"></div>
-  <button class="tb-action"        data-drawer="dig"      title="Dig">      <span class="tb-icon">⛏️</span><span class="tb-label">Dig</span></button>
-  <button class="tb-action danger" data-drawer="cancel"   title="Cancel">   <span class="tb-icon">✖️</span><span class="tb-label">Cancel</span></button>
-  <button class="tb-action"        data-drawer="priority" title="Priority">  <span class="tb-icon">📌</span><span class="tb-label">Pri</span></button>
-  <button class="tb-action"        id="btn-noop"                             ><span class="tb-icon">⏭️</span><span class="tb-label">No-op</span></button>
-
-  <!-- Spacer pushes speed controls to far right -->
+  <button class="tb-btn" onclick="sendAction('base')">🏗️ Base</button>
+  <button class="tb-btn" onclick="sendAction('o2')">💨 O2</button>
+  <button class="tb-btn" onclick="sendAction('power')">⚡ Power</button>
+  <button class="tb-btn" onclick="sendAction('dig')">⛏️ Dig</button>
+  <button class="tb-btn" onclick="sendAction('priority')">📌 Pri</button>
+  <button class="tb-btn" onclick="sendAction('noop')">⏭️ No-op</button>
   <div style="flex:1"></div>
-
-  <!-- Speed status label -->
-  <span id="tb-speed-status">● 1x</span>
-
-  <!-- Speed segmented control -->
+  <span id="speed-label" style="color:#3fb950;font-size:11px;margin-right:6px">● 1x</span>
   <div class="speed-group">
-    <button class="tb-speed-btn" id="spd-0" onclick="setSpeed(0)" title="Pause">⏸</button>
-    <button class="tb-speed-btn active" id="spd-1" onclick="setSpeed(1)" title="Normal (1x)">1x</button>
-    <button class="tb-speed-btn" id="spd-2" onclick="setSpeed(2)" title="Fast (2x)">2x</button>
-    <button class="tb-speed-btn" id="spd-3" onclick="setSpeed(3)" title="Ultra (4x)">4x</button>
+    <div class="spd" onclick="setSpeed(0)">⏸</div>
+    <div class="spd active" id="spd-1" onclick="setSpeed(1)">1x</div>
+    <div class="spd" id="spd-2" onclick="setSpeed(2)">2x</div>
+    <div class="spd" id="spd-3" onclick="setSpeed(3)">4x</div>
   </div>
-
-  <div class="tb-sep"></div>
-
-  <!-- Settings button — opens in-game settings menu via xdotool -->
-  <button class="tb-btn" id="btn-settings" title="Open in-game settings">
-    <span class="tb-icon">⚙️</span>
-    <span class="tb-label">Settings</span>
-  </button>
-
+  <button class="tb-btn" style="margin-left:6px" onclick="sendUiAction('open_settings')">⚙️ Settings</button>
 </div>
 
 <script>
-// ── Building catalog ──────────────────────────────────────────────────────
-var BUILDINGS = {
-  base: { label: 'Base', sections: [
-    { name: 'Tiles', items: [
-      { id: 'Tile',                  name: 'Tile',                icon: '⬜' },
-      { id: 'GasPermeableMembrane',  name: 'Mesh Tile',           icon: '⬜' },
-      { id: 'InsulatedTile',         name: 'Insulated Tile',      icon: '⬜' },
-      { id: 'BunkerTile',            name: 'Bunker Tile',         icon: '⬛' },
-      { id: 'MetalTile',             name: 'Metal Tile',          icon: '🔷' },
-      { id: 'PlasticTile',           name: 'Plastic Tile',        icon: '🔹' },
-    ]},
-    { name: 'Ladders & Tubes', items: [
-      { id: 'Ladder',                name: 'Ladder',              icon: '🪜' },
-      { id: 'LadderFast',            name: 'Plastic Ladder',      icon: '🪜' },
-      { id: 'FirePole',              name: "Fireman's Pole",      icon: '🪜' },
-      { id: 'Tube',                  name: 'Transit Tube',        icon: '⭕' },
-      { id: 'TubeEntrance',          name: 'Tube Entrance',       icon: '⭕' },
-      { id: 'TubeExit',              name: 'Tube Exit',           icon: '⭕' },
-    ]},
-    { name: 'Doors', items: [
-      { id: 'Door',                  name: 'Manual Airlock',      icon: '🚪' },
-      { id: 'PneumaticDoor',         name: 'Pneumatic Door',      icon: '🚪' },
-      { id: 'QuantumLockDoor',       name: 'Blast Door',          icon: '🚪' },
-      { id: 'StorageTile',           name: 'Storage Tile',        icon: '📦' },
-    ]},
-  ]},
-  oxygen: { label: 'Oxygen', sections: [
-    { name: 'Production', items: [
-      { id: 'OxygenDiffuser',        name: 'Oxygen Diffuser',     icon: '💨' },
-      { id: 'AlgaeHabitat',          name: 'Algae Terrarium',     icon: '🌿' },
-      { id: 'Electrolyzer',          name: 'Electrolyzer',        icon: '⚗️' },
-      { id: 'RustDeoxidizer',        name: 'Rust Deoxidizer',     icon: '🦠' },
-    ]},
-    { name: 'Filtering', items: [
-      { id: 'CO2Scrubber',           name: 'Carbon Skimmer',      icon: '🌿' },
-      { id: 'AirFilter',             name: 'Air Deodorizer',      icon: '🌀' },
-    ]},
-  ]},
-  power: { label: 'Power', sections: [
-    { name: 'Generators', items: [
-      { id: 'ManualGenerator',       name: 'Manual Generator',    icon: '⚡' },
-      { id: 'Generator',             name: 'Coal Generator',      icon: '⚡' },
-      { id: 'WoodGasGenerator',      name: 'Wood Burner',         icon: '🔥' },
-      { id: 'HydrogenGenerator',     name: 'Hydrogen Generator',  icon: '⚡' },
-      { id: 'MethaneGenerator',      name: 'Natural Gas Gen.',    icon: '⚡' },
-      { id: 'SteamTurbine2',         name: 'Steam Turbine',       icon: '🌪️' },
-      { id: 'SolarPanel',            name: 'Solar Panel',         icon: '☀️' },
-      { id: 'NuclearReactor',        name: 'Nuclear Reactor',     icon: '☢️' },
-    ]},
-    { name: 'Storage & Wiring', items: [
-      { id: 'Battery',               name: 'Battery',             icon: '🔋' },
-      { id: 'BatteryMedium',         name: 'Large Battery',       icon: '🔋' },
-      { id: 'BatterySmart',          name: 'Smart Battery',       icon: '🔋' },
-      { id: 'Wire',                  name: 'Wire',                icon: '〰️' },
-      { id: 'WireRefined',           name: 'Conductive Wire',     icon: '〰️' },
-      { id: 'WireBridge',            name: 'Wire Bridge',         icon: '〰️' },
-      { id: 'Switch',                name: 'Switch',              icon: '🔘' },
-      { id: 'PowerTransformer',      name: 'Power Transformer',   icon: '🔌' },
-    ]},
-  ]},
-  food: { label: 'Food', sections: [
-    { name: 'Cooking', items: [
-      { id: 'MicrobeMusher',         name: 'Microbe Musher',      icon: '🍲' },
-      { id: 'CookingStation',        name: 'Electric Grill',      icon: '🍳' },
-      { id: 'GourmetCookingStation', name: 'Gas Range',           icon: '🍳' },
-    ]},
-    { name: 'Growing', items: [
-      { id: 'Mealwood',              name: 'Mealwood Plant',      icon: '🌱' },
-      { id: 'BasicFarm',             name: 'Farm Tile',           icon: '🌾' },
-      { id: 'FarmTile',              name: 'Hydroponic Farm',     icon: '🌿' },
-      { id: 'PlanterBox',            name: 'Planter Box',         icon: '🪴' },
-    ]},
-    { name: 'Storage', items: [
-      { id: 'Refrigerator',          name: 'Refrigerator',        icon: '❄️' },
-      { id: 'RationBox',             name: 'Ration Box',          icon: '📦' },
-    ]},
-  ]},
-  plumbing: { label: 'Plumbing', sections: [
-    { name: 'Sanitation', items: [
-      { id: 'Outhouse',              name: 'Outhouse',            icon: '🚽' },
-      { id: 'FlushToilet',           name: 'Lavatory',            icon: '🚽' },
-      { id: 'WashBasin',             name: 'Wash Basin',          icon: '🚿' },
-      { id: 'Shower',                name: 'Shower',              icon: '🚿' },
-      { id: 'WashSink',              name: 'Sink',                icon: '🚿' },
-    ]},
-    { name: 'Pumps & Pipes', items: [
-      { id: 'LiquidPumpingStation',  name: 'Pitcher Pump',        icon: '🚰' },
-      { id: 'LiquidMiniPump',        name: 'Mini Liquid Pump',    icon: '🚰' },
-      { id: 'LiquidPump',            name: 'Liquid Pump',         icon: '🚰' },
-      { id: 'LiquidConduit',         name: 'Liquid Pipe',         icon: '〰️' },
-      { id: 'LiquidConduitBridge',   name: 'Pipe Bridge',         icon: '〰️' },
-      { id: 'LiquidFilter',          name: 'Liquid Filter',       icon: '🔽' },
-      { id: 'LiquidValve',           name: 'Liquid Valve',        icon: '🔽' },
-      { id: 'LiquidShutOff',         name: 'Liquid Shutoff',      icon: '🛑' },
-    ]},
-    { name: 'Treatment', items: [
-      { id: 'WaterSieve',            name: 'Water Sieve',         icon: '💧' },
-      { id: 'Desalinator',           name: 'Desalinator',         icon: '💧' },
-      { id: 'AlgaeDistillery',       name: 'Algae Distillery',    icon: '🌿' },
-    ]},
-  ]},
-  ventilation: { label: 'Ventilation', sections: [
-    { name: 'Pumps & Pipes', items: [
-      { id: 'GasPumpingStation',     name: 'Gas Pump',            icon: '🌀' },
-      { id: 'GasMiniPump',           name: 'Mini Gas Pump',       icon: '🌀' },
-      { id: 'GasConduit',            name: 'Gas Pipe',            icon: '〰️' },
-      { id: 'GasConduitBridge',      name: 'Gas Pipe Bridge',     icon: '〰️' },
-      { id: 'GasFilter',             name: 'Gas Filter',          icon: '🔽' },
-      { id: 'GasValve',              name: 'Gas Valve',           icon: '🔽' },
-      { id: 'GasShutOff',            name: 'Gas Shutoff',         icon: '🛑' },
-      { id: 'GasVent',               name: 'Gas Vent',            icon: '🌀' },
-      { id: 'HighPressureGasVent',   name: 'High Pressure Vent',  icon: '🌀' },
-    ]},
-    { name: 'Refinement', items: [
-      { id: 'RockCrusher',           name: 'Rock Crusher',        icon: '⚙️' },
-      { id: 'MetalRefinery',         name: 'Metal Refinery',      icon: '🏭' },
-      { id: 'Kiln',                  name: 'Kiln',                icon: '🔥' },
-      { id: 'OilRefinery',           name: 'Oil Refinery',        icon: '🛢️' },
-      { id: 'GlassForge',            name: 'Glass Forge',         icon: '🔮' },
-    ]},
-  ]},
-  medicine: { label: 'Medicine', sections: [
-    { name: 'Medical', items: [
-      { id: 'DoctorStation',         name: 'Cot',                 icon: '🏥' },
-      { id: 'MedicalCot',            name: 'Hospital Bed',        icon: '🏥' },
-      { id: 'HealingVat',            name: 'Sick Bay',            icon: '💉' },
-      { id: 'Apothecary',            name: 'Apothecary',          icon: '💊' },
-      { id: 'HandSanitizer',         name: 'Hand Sanitizer',      icon: '🧴' },
-    ]},
-  ]},
-  furniture: { label: 'Furniture', sections: [
-    { name: 'Sleeping', items: [
-      { id: 'Bed',                   name: 'Cot',                 icon: '🛏️' },
-      { id: 'LuxuryBed',             name: 'Comfy Bed',           icon: '🛏️' },
-      { id: 'BarrackBox',            name: 'Bunk Bed',            icon: '🛏️' },
-    ]},
-    { name: 'Recreation', items: [
-      { id: 'MassageTable',          name: 'Massage Table',       icon: '💆' },
-      { id: 'ArcadeMachine',         name: 'Arcade Cabinet',      icon: '🕹️' },
-      { id: 'EspressoMachine',       name: 'Espresso Machine',    icon: '☕' },
-      { id: 'HotTub',                name: 'Hot Tub',             icon: '🛁' },
-    ]},
-    { name: 'Decor & Dining', items: [
-      { id: 'SmallSculpture',        name: 'Small Sculpture',     icon: '🗿' },
-      { id: 'Canvas',                name: 'Canvas',              icon: '🖼️' },
-      { id: 'FloorLamp',             name: 'Ceiling Light',       icon: '💡' },
-      { id: 'MessTable',             name: 'Mess Table',          icon: '🍽️' },
-      { id: 'DiningTable',           name: 'Dining Table',        icon: '🍽️' },
-    ]},
-  ]},
-  stations: { label: 'Stations', sections: [
-    { name: 'Research', items: [
-      { id: 'ResearchCenter',        name: 'Research Station',    icon: '🔬' },
-      { id: 'AdvancedResearchCenter',name: 'Super Computer',      icon: '💻' },
-      { id: 'CosmicResearchCenter',  name: 'Virtual Planetarium', icon: '🌌' },
-      { id: 'NuclearResearchCenter', name: 'Neutron Microscope',  icon: '🔬' },
-    ]},
-    { name: 'Storage & Logistics', items: [
-      { id: 'StorageLocker',         name: 'Storage Bin',         icon: '📦' },
-      { id: 'StorageLockerSmart',    name: 'Smart Storage Bin',   icon: '📦' },
-      { id: 'SweepBot',              name: 'Auto-Sweeper',        icon: '🤖' },
-      { id: 'DropAllWorkable',       name: 'Pneumatic Chute',     icon: '⬇️' },
-    ]},
-  ]},
-  utilities: { label: 'Utilities', sections: [
-    { name: 'Heating / Cooling', items: [
-      { id: 'HeatExchanger',         name: 'Thermo Aquatuner',    icon: '❄️' },
-      { id: 'ThermalBlock',          name: 'Thermo Regulator',    icon: '🌡️' },
-      { id: 'SpaceHeater',           name: 'Space Heater',        icon: '🔥' },
-    ]},
-    { name: 'Misc', items: [
-      { id: 'Telepresence',          name: 'Printing Pod',        icon: '📡' },
-      { id: 'GeneShuffler',          name: 'Neural Vacillator',   icon: '🧬' },
-      { id: 'RailGun',               name: 'Rail Gun',            icon: '💥' },
-    ]},
-  ]},
-  automation: { label: 'Automation', sections: [
-    { name: 'Logic Gates', items: [
-      { id: 'LogicGateAND',          name: 'AND Gate',            icon: '🔲' },
-      { id: 'LogicGateOR',           name: 'OR Gate',             icon: '🔲' },
-      { id: 'LogicGateNOT',          name: 'NOT Gate',            icon: '🔲' },
-      { id: 'LogicGateXOR',          name: 'XOR Gate',            icon: '🔲' },
-      { id: 'LogicGateBUFFER',       name: 'Buffer Gate',         icon: '🔲' },
-      { id: 'LogicGateFILTER',       name: 'Filter Gate',         icon: '🔲' },
-    ]},
-    { name: 'Sensors', items: [
-      { id: 'LogicTemperatureSensor',    name: 'Thermo Sensor',         icon: '🌡️' },
-      { id: 'LogicPressureSensorGas',    name: 'Gas Pressure Sensor',   icon: '📊' },
-      { id: 'LogicMassSensor',           name: 'Weight Plate',          icon: '⚖️' },
-      { id: 'LogicDuplicantSensor',      name: 'Duplicant Sensor',      icon: '👤' },
-      { id: 'LogicTimeOfDaySensor',      name: 'Cycle Sensor',          icon: '🕐' },
-    ]},
-    { name: 'Actuators', items: [
-      { id: 'LogicReservoir',        name: 'Memory Toggle',       icon: '💾' },
-      { id: 'LogicSwitch',           name: 'Automation Switch',   icon: '🔘' },
-    ]},
-  ]},
-};
+// ── WebSocket connection ──
+var ws = null;
+var lastStateTime = null;
+var state = {};
+var sessionStats = { ticks:0, actions:0, ackOk:0, ackFail:0, noops:0, errors:0 };
+var logEntries = [];
+var rewardData = { tick: null, episode: 0, survival: null, obligations: [] };
 
-// ── Drawer ────────────────────────────────────────────────────────────────
-var activeDrawer = null;
-function clearEl(el) { while (el.firstChild) el.removeChild(el.firstChild); }
-
-function openDrawer(key, triggerEl) {
-  if (activeDrawer === key) { closeDrawer(); return; }
-  activeDrawer = key;
-  document.querySelectorAll('.tb-btn,.tb-action').forEach(function(b){ b.classList.remove('active'); });
-  if (triggerEl) triggerEl.classList.add('active');
-  var title = document.getElementById('drawer-title');
-  var list  = document.getElementById('drawer-list');
-  clearEl(list);
-  if (key === 'dig' || key === 'cancel' || key === 'priority') {
-    title.textContent = key === 'dig' ? 'Dig' : key === 'cancel' ? 'Cancel Dig' : 'Set Priority';
-    buildActionDrawer(list, key);
-  } else {
-    var cat = BUILDINGS[key];
-    if (!cat) return;
-    title.textContent = cat.label;
-    buildBuildingDrawer(list, cat);
-  }
-  document.getElementById('drawer').classList.add('open');
-}
-function closeDrawer() {
-  document.getElementById('drawer').classList.remove('open');
-  document.querySelectorAll('.tb-btn,.tb-action').forEach(function(b){ b.classList.remove('active'); });
-  activeDrawer = null;
-}
-function getCoords() {
-  return { x: parseInt(document.getElementById('d-x').value,10)||0,
-           y: parseInt(document.getElementById('d-y').value,10)||0 };
-}
-function buildBuildingDrawer(list, cat) {
-  cat.sections.forEach(function(sec) {
-    var hdr = document.createElement('div'); hdr.className = 'dsec-hdr'; hdr.textContent = sec.name; list.appendChild(hdr);
-    sec.items.forEach(function(item) {
-      var row = document.createElement('div'); row.className = 'ditem';
-      var ic = document.createElement('span'); ic.className = 'di-icon'; ic.textContent = item.icon; row.appendChild(ic);
-      var inf = document.createElement('div'); inf.className = 'di-info';
-      var nm = document.createElement('div'); nm.className = 'di-name'; nm.textContent = item.name; inf.appendChild(nm);
-      var id = document.createElement('div'); id.className = 'di-id';   id.textContent = item.id;   inf.appendChild(id);
-      row.appendChild(inf);
-      var btn = document.createElement('button'); btn.className = 'di-btn'; btn.textContent = 'Place';
-      (function(bid){ btn.addEventListener('click', function(e){ e.stopPropagation(); var c=getCoords(); send({action:'place_building',building_id:bid,cell_x:c.x,cell_y:c.y}); }); })(item.id);
-      row.appendChild(btn); list.appendChild(row);
-    });
-  });
-}
-function buildActionDrawer(list, key) {
-  var row = document.createElement('div'); row.className = 'd-action-row';
-  if (key === 'dig') {
-    row.innerHTML = '<span class="di-icon">⛏️</span><span class="di-lbl">Dig at X/Y</span>';
-    var b = document.createElement('button'); b.className = 'di-btn'; b.textContent = 'Dig';
-    b.addEventListener('click', function(){ var c=getCoords(); send({action:'dig',cell_x:c.x,cell_y:c.y}); });
-    row.appendChild(b);
-  } else if (key === 'cancel') {
-    row.innerHTML = '<span class="di-icon">✖️</span><span class="di-lbl">Cancel dig at X/Y</span>';
-    var b2 = document.createElement('button'); b2.className = 'di-btn'; b2.style.color='#f85149'; b2.textContent = 'Cancel';
-    b2.addEventListener('click', function(){ var c=getCoords(); send({action:'cancel_dig',cell_x:c.x,cell_y:c.y}); });
-    row.appendChild(b2);
-  } else if (key === 'priority') {
-    row.innerHTML = '<span class="di-lbl">Priority</span>';
-    var inp = document.createElement('input'); inp.type='number'; inp.id='drawer-priority'; inp.min=1; inp.max=9; inp.value=7;
-    inp.style.cssText='width:44px;background:#21262d;border:1px solid #58a6ff;color:#e6edf3;padding:2px 4px;border-radius:3px;font-family:inherit;font-size:11px;';
-    var b3 = document.createElement('button'); b3.className='di-btn'; b3.textContent='Set';
-    b3.addEventListener('click', function(){ var c=getCoords(); var p=parseInt(document.getElementById('drawer-priority').value,10)||7; send({action:'set_priority',cell_x:c.x,cell_y:c.y,priority:p}); });
-    row.appendChild(inp); row.appendChild(b3);
-  }
-  list.appendChild(row);
-}
-document.querySelectorAll('[data-drawer]').forEach(function(btn){
-  btn.addEventListener('click', function(){ openDrawer(btn.getAttribute('data-drawer'), btn); });
-});
-document.getElementById('btn-noop').addEventListener('click', function(){ send({action:'no_op'}); });
-document.getElementById('btn-settings').addEventListener('click', function(){ send({type:'ui_action',action:'open_settings'}); });
-document.addEventListener('click', function(e){
-  var dr=document.getElementById('drawer'), tb=document.getElementById('toolbar');
-  if (activeDrawer && !dr.contains(e.target) && !tb.contains(e.target)) closeDrawer();
-});
-
-// ── Runner controls ───────────────────────────────────────────────────────
-function renderRunnerStatus(running, pid) {
-  var dot=document.getElementById('runner-dot');
-  var txt=document.getElementById('runner-status-text');
-  var pidEl=document.getElementById('runner-pid');
-  var bs=document.getElementById('btn-start-runner');
-  var bst=document.getElementById('btn-stop-runner');
-  if (running) {
-    dot.classList.add('on');
-    txt.textContent = 'Runner: running';
-    pidEl.textContent = pid ? 'pid '+pid : '';
-    bs.disabled=true; bst.disabled=false;
-  } else {
-    dot.classList.remove('on');
-    txt.textContent = 'Runner: stopped';
-    pidEl.textContent = '';
-    bs.disabled=false; bst.disabled=true;
-  }
-}
-function runnerStart() {
-  fetch('/runner/start',{method:'POST'}).then(function(r){return r.json();}).then(function(d){ if(!d.ok) alert('Start failed: '+d.error); });
-}
-function runnerStop() {
-  fetch('/runner/stop',{method:'POST'}).then(function(r){return r.json();}).then(function(d){ if(!d.ok) alert('Stop failed: '+d.error); });
-}
-
-// ── Speed controls ────────────────────────────────────────────────────────
-var currentSpeed = 1;
-
-function setSpeed(speed) {
-  currentSpeed = speed;
-  send({ type: "action", action: "set_speed", speed: speed });
-  renderSpeedButtons(speed);
-}
-
-function renderSpeedButtons(speed) {
-  [0, 1, 2, 3].forEach(function(s) {
-    var btn = document.getElementById("spd-" + s);
-    if (!btn) return;
-    btn.classList.remove("active", "paused");
-    if (s === speed) {
-      btn.classList.add(speed === 0 ? "paused" : "active");
-    }
-  });
-  var status = document.getElementById("tb-speed-status");
-  if (!status) return;
-  if (speed === 0) {
-    status.textContent = "● Paused";
-    status.classList.add("paused");
-  } else {
-    var labels = ["", "1x", "2x", "4x"];
-    status.textContent = "● " + (labels[speed] || speed + "x");
-    status.classList.remove("paused");
-  }
-}
-
-// ── WebSocket ─────────────────────────────────────────────────────────────
-var ws, reconnectTimer;
 function connect() {
-  ws = new WebSocket('ws://'+location.host+'/ws');
-  ws.onopen = function(){ document.getElementById('dot').classList.add('on'); document.getElementById('status-text').textContent='Live'; clearTimeout(reconnectTimer); };
-  ws.onclose = function(){ document.getElementById('dot').classList.remove('on'); document.getElementById('status-text').textContent='Disconnected — retrying...'; reconnectTimer=setTimeout(connect,3000); };
-  ws.onerror = function(){ document.getElementById('status-text').textContent='WebSocket error'; };
-  ws.onmessage = function(evt){
-    var msg = JSON.parse(evt.data);
-    if (msg.type==='state')         renderState(msg.data, msg.agent, msg.tick);
-    if (msg.type==='ack')           renderLog(msg.log, msg.last_action);
-    if (msg.type==='runner_status') renderRunnerStatus(msg.running, msg.pid);
+  ws = new WebSocket('ws://' + location.host + '/ws');
+  ws.onopen = function() {
+    document.getElementById('dot-relay').classList.add('on');
+    document.getElementById('relay-label').textContent = 'Connected';
+    document.getElementById('relay-label').style.color = '#c9d1d9';
+  };
+  ws.onclose = function() {
+    document.getElementById('dot-relay').classList.remove('on');
+    document.getElementById('relay-label').textContent = 'Disconnected';
+    document.getElementById('relay-label').style.color = '#f85149';
+    setTimeout(connect, 3000);
+  };
+  ws.onerror = function() {
+    addLogEntry('error', 'WebSocket error');
+  };
+  ws.onmessage = function(e) {
+    var msg = JSON.parse(e.data);
+    handleMessage(msg);
   };
 }
 
-function setText(id,t){ var el=document.getElementById(id); if(el) el.textContent=t; }
-
-function colorVal(el, val, warnThresh, dangerThresh, invert) {
-  el.classList.remove('warn','danger','ok');
-  if (val == null) return;
-  if (invert) { // lower is worse
-    if (val <= dangerThresh) el.classList.add('danger');
-    else if (val <= warnThresh) el.classList.add('warn');
-    else el.classList.add('ok');
-  } else { // higher is worse
-    if (val >= dangerThresh) el.classList.add('danger');
-    else if (val >= warnThresh) el.classList.add('warn');
+function handleMessage(msg) {
+  if (msg.type === 'state') {
+    state = msg.data || {};
+    // Extract reward and obligation data for health strip
+    var r = state.reward || {};
+    rewardData.tick = r.tick != null ? r.tick : null;
+    rewardData.episode = r.episode != null ? r.episode : 0;
+    var alive = (state.duplicants || []).filter(function(d) { return d.health > 0; }).length;
+    var total = (state.duplicants || []).length;
+    rewardData.survival = total > 0 ? alive + '/' + total : null;
+    rewardData.obligations = r.open_events ? r.open_events.map(function(e) {
+      return (e.type || e) + (e.detail ? ': ' + e.detail : '');
+    }) : [];
+    lastStateTime = Date.now();
+    sessionStats.ticks++;
+    renderAll();
+  } else if (msg.type === 'ack') {
+    var ok = msg.success !== false;
+    if (ok) { sessionStats.ackOk++; } else { sessionStats.ackFail++; }
+    addLogEntry(ok ? 'ack-ok' : 'ack-fail', (msg.action || '') + ' → ' + (ok ? 'success' : (msg.error || 'failed')));
+    renderLog();
+  } else if (msg.type === 'runner_status') {
+    var running = msg.running;
+    document.getElementById('dot-runner').className = 'dot' + (running ? ' on' : '');
+    document.getElementById('runner-label').textContent = 'Runner: ' + (running ? 'running' : 'stopped');
+    renderConfig();
   }
 }
 
-function renderState(d, agent, tick) {
-  if (!d) return;
-  setText('last-update', new Date().toLocaleTimeString());
-  setText('cycle', d.cycle != null ? d.cycle : '—');
-  setText('time',  d.time  != null ? d.time.toFixed(1)+'s' : '—');
+// ── Tab switching ──
+function switchTab(name) {
+  document.querySelectorAll('.tab-body').forEach(function(el) { el.classList.remove('active'); });
+  document.querySelectorAll('#tabbar button').forEach(function(el) { el.classList.remove('active'); });
+  document.getElementById('tab-' + name).classList.add('active');
+  document.querySelector('#tabbar button[data-tab="' + name + '"]').classList.add('active');
+  if (name === 'config') loadConfig();
+}
 
-  var dups=d.duplicants||[], blds=d.buildings||[], alerts=d.alerts||[], res=d.resources||{};
-  setText('dup-count',   dups.length);
-  setText('bld-count',   blds.length);
-  setText('bld-count2',  blds.length);
-  setText('alert-count', alerts.length);
+// ── Actions ──
+function sendAction(type) {
+  if (!ws || ws.readyState !== 1) return;
+  var action = { type: 'action', action: type };
+  ws.send(JSON.stringify(action));
+  sessionStats.actions++;
+  addLogEntry('action', type);
+  renderLog();
+}
 
-  // Resources with color coding
-  var oEl=document.getElementById('oxygen');
-  oEl.textContent = res.oxygen_kg!=null ? res.oxygen_kg.toFixed(2)+' kg' : '—';
-  colorVal(oEl, res.oxygen_kg, 10, 2, true);
+function sendUiAction(action) {
+  if (!ws || ws.readyState !== 1) return;
+  ws.send(JSON.stringify({ type: 'ui_action', action: action }));
+}
 
-  var coEl=document.getElementById('co2');
-  coEl.textContent = res.co2_kg!=null ? res.co2_kg.toFixed(3)+' kg' : '—';
-  colorVal(coEl, res.co2_kg, 5, 20, false);
-
-  var wEl=document.getElementById('water');
-  wEl.textContent = res.water_kg!=null ? res.water_kg.toFixed(2)+' kg' : '—';
-  colorVal(wEl, res.water_kg, 50, 10, true);
-
-  var foodVal = res.food_kcal!=null ? res.food_kcal : res.food_kcal_today;
-  var fEl=document.getElementById('food');
-  fEl.textContent = foodVal!=null ? (foodVal/1000).toFixed(1)+' Mkcal' : '—';
-
-  var pEl=document.getElementById('power');
-  pEl.textContent = res.power_kw!=null ? res.power_kw.toFixed(2)+' kW' : '—';
-  colorVal(pEl, res.power_kw, 0.1, 0, true);
-
-  // AI stats
-  if (agent) {
-    setText('ai-calls', agent.calls);
-    setText('ai-in',    agent.input_tokens ? agent.input_tokens.toLocaleString() : '—');
-    setText('ai-out',   agent.output_tokens ? agent.output_tokens.toLocaleString() : '—');
-    setText('ai-cost',  agent.cost_usd!=null ? '$'+agent.cost_usd.toFixed(5) : '—');
+function setSpeed(speed) {
+  if (ws && ws.readyState === 1) {
+    ws.send(JSON.stringify({ type: 'action', action: 'set_speed', speed: speed }));
+    sessionStats.actions++;
+    addLogEntry('action', 'set_speed ' + speed + 'x');
   }
-  if (tick != null) setText('ai-tick', tick);
-
-  // Duplicants
-  var dupEl=document.getElementById('duplicants'); clearEl(dupEl);
-  if (!dups.length) { var m=document.createElement('span'); m.className='muted'; m.textContent='None'; dupEl.appendChild(m); }
-  else dups.forEach(function(dup){
-    var row=document.createElement('div'); row.className='dup-row';
-    var nm=document.createElement('span'); nm.className='dup-name'; nm.textContent=dup.name; row.appendChild(nm);
-    var stress=(dup.stress||0)*100;
-    var sc=document.createElement('span');
-    sc.className='dup-stat'+(stress>=30?' dup-stress-hi':stress>=15?' dup-stress-med':'');
-    sc.textContent='str:'+stress.toFixed(0)+'%'; row.appendChild(sc);
-    var hp=document.createElement('span'); hp.className='dup-stat'; hp.textContent='hp:'+(dup.health!=null?dup.health.toFixed(0):'?'); row.appendChild(hp);
-    var pos=document.createElement('span'); pos.className='dup-stat'; pos.textContent='('+dup.x+','+dup.y+')'; row.appendChild(pos);
-    var tk=document.createElement('span'); tk.className='dup-task'; tk.textContent=dup.current_task||'idle'; row.appendChild(tk);
-    dupEl.appendChild(row);
+  [0,1,2,3].forEach(function(s) {
+    var el = document.getElementById('spd-' + s);
+    if (el) el.classList.toggle('active', s === speed);
   });
+}
 
-  // Buildings
-  var bldEl=document.getElementById('buildings'); clearEl(bldEl);
-  if (!blds.length) { var m2=document.createElement('span'); m2.className='muted'; m2.textContent='None'; bldEl.appendChild(m2); }
-  else blds.forEach(function(b){
-    var row=document.createElement('div'); row.className='bld-row';
-    var tp=document.createElement('span'); tp.className='bld-type'; tp.textContent=b.type; row.appendChild(tp);
-    var ps=document.createElement('span'); ps.className='bld-pos'; ps.textContent='('+b.x+','+b.y+')'; row.appendChild(ps);
-    var st=document.createElement('span'); st.className='bld-status '+(b.operational?'bld-ok':'bld-off'); st.textContent=b.operational?'OK':'OFFLINE'; row.appendChild(st);
-    bldEl.appendChild(row);
+// ── Render helpers ──
+function setText(id, val) {
+  var el = document.getElementById(id);
+  if (el) el.textContent = val != null ? val : '—';
+}
+
+function renderAll() {
+  renderColony();
+  renderDuplicants();
+  renderResearch();
+  renderPerimeter();
+  renderHealthStrip();
+  updateTimestamp();
+}
+
+function updateTimestamp() {
+  if (lastStateTime) {
+    var sec = ((Date.now() - lastStateTime) / 1000).toFixed(1);
+    setText('upd-label', 'updated ' + sec + 's ago');
+  }
+}
+setInterval(updateTimestamp, 500);
+
+// Stub render functions — filled in per task
+var TILE_COLORS = {
+  'Vacuum': '#0d1117',
+  'Sandstone': '#c8a96e',
+  'Dirt': '#8b6914',
+  'Granite': '#7a7a8a',
+  'Algae': '#3fb950',
+  'Water': '#1f6feb',
+  'Oxygen': '#58a6ff',
+  'CarbonDioxide': '#f0883e',
+  'Polluted Water': '#5a4a1a',
+  'Polluted Oxygen': '#8b8b1a',
+};
+
+function renderColony() {
+  if (!state) return;
+  setText('col-cycle', state.cycle != null ? state.cycle : '—');
+  setText('col-time', state.time != null ? state.time.toFixed(1) + 's' : '—');
+  setText('col-phase', state.phase != null ? state.phase : '—');
+  setText('col-speed', state.speed != null ? state.speed + 'x' : '—');
+
+  // Resources
+  var res = state.resources || {};
+  var resEl = document.getElementById('col-resources');
+  resEl.textContent = '';
+  var rows = [
+    ['O2', res.oxygen_kg, 'kg'],
+    ['Water', res.water_kg, 'kg'],
+    ['Food', res.food_kcal, 'kcal'],
+    ['Power', res.power_kw, 'kW'],
+    ['CO2', res.co2_kg, 'kg'],
+  ];
+  rows.forEach(function(r) {
+    var div = document.createElement('div');
+    div.className = 'kv';
+    var k = document.createElement('span'); k.className = 'k'; k.textContent = r[0];
+    var v = document.createElement('span'); v.className = 'v'; v.textContent = r[1] != null ? r[1].toFixed(1) + ' ' + r[2] : '—';
+    div.appendChild(k); div.appendChild(v);
+    resEl.appendChild(div);
   });
 
   // Alerts
-  var alEl=document.getElementById('alerts'); clearEl(alEl);
-  if (!alerts.length) { var mn=document.createElement('span'); mn.className='muted'; mn.textContent='None'; alEl.appendChild(mn); }
-  else alerts.forEach(function(a){
-    var row=document.createElement('div'); row.className='alert-row'; row.textContent=a; alEl.appendChild(row);
-  });
-}
-
-function renderLog(entries, lastAction) {
-  if (lastAction && lastAction.action !== 'no_op') {
-    var a=lastAction;
-    setText('la-action',   a.action||'—');
-    setText('la-building', a.building_id||'—');
-    setText('la-cell',     a.cell_x!=null ? '('+a.cell_x+','+a.cell_y+')' : '—');
-    document.getElementById('last-action').textContent = a.action + (a.building_id?' '+a.building_id:'') + (a.cell_x!=null?' @('+a.cell_x+','+a.cell_y+')':'');
+  var alerts = state.alerts || [];
+  var alertEl = document.getElementById('col-alerts');
+  if (alerts.length === 0) {
+    alertEl.textContent = 'No alerts';
+    alertEl.style.color = '#484f58';
+  } else {
+    alertEl.textContent = '';
+    alerts.forEach(function(a) {
+      var div = document.createElement('div');
+      div.style.cssText = 'padding:2px 0;border-bottom:1px solid #21262d;font-size:12px;color:#f0883e';
+      div.textContent = a;
+      alertEl.appendChild(div);
+    });
   }
-  var el=document.getElementById('log'); clearEl(el);
-  (entries||[]).slice().reverse().forEach(function(e){
-    var div=document.createElement('div'); div.className='log-entry';
-    if (e.indexOf('FAIL')!==-1||e.indexOf('error')!==-1) div.classList.add('log-fail');
-    else if (e.indexOf('no_op')===-1) div.classList.add('log-ok');
-    div.textContent=e; el.appendChild(div);
+
+  // Tile canvas
+  var tiles = state.tiles;
+  if (tiles && tiles.data) {
+    var canvas = document.getElementById('col-tile-canvas');
+    var w = tiles.w || 64; var h = tiles.h || 64;
+    canvas.width = w; canvas.height = h;
+    var ctx = canvas.getContext('2d');
+    var img = ctx.createImageData(w, h);
+    for (var i = 0; i < tiles.data.length; i++) {
+      var cell = tiles.data[i];
+      var color = TILE_COLORS[cell[0]] || '#30363d';
+      var r2 = parseInt(color.slice(1,3)||'30',16);
+      var g2 = parseInt(color.slice(3,5)||'36',16);
+      var b2 = parseInt(color.slice(5,7)||'3d',16);
+      var idx = i * 4;
+      img.data[idx]=r2; img.data[idx+1]=g2; img.data[idx+2]=b2; img.data[idx+3]=255;
+    }
+    ctx.putImageData(img, 0, 0);
+    document.getElementById('col-tile-pos').textContent =
+      'window: (' + tiles.x + ',' + tiles.y + ') ' + w + '×' + h;
+  }
+}
+// Bars
+function makeBar(label, value, cls) {
+  var pct = Math.min(1, Math.max(0, value || 0)) * 100;
+  var row = document.createElement('div'); row.className = 'bar-row';
+  var lbl = document.createElement('span'); lbl.className = 'bar-label'; lbl.textContent = label;
+  var track = document.createElement('div'); track.className = 'bar-track';
+  var fill = document.createElement('div'); fill.className = 'bar-fill ' + cls;
+  fill.style.width = pct.toFixed(1) + '%';
+  var val = document.createElement('span'); val.className = 'bar-val';
+  val.textContent = (pct).toFixed(0) + '%';
+  track.appendChild(fill); row.appendChild(lbl); row.appendChild(track); row.appendChild(val);
+  return row;
+}
+
+function renderDuplicants() {
+  var container = document.getElementById('dupe-list');
+  if (!container) return;
+  var dupes = (state && state.duplicants) || [];
+  container.textContent = '';
+
+  if (dupes.length === 0) {
+    var p = document.createElement('div');
+    p.style.cssText = 'color:#484f58;padding:20px;text-align:center';
+    p.textContent = 'No duplicant data';
+    container.appendChild(p);
+    return;
+  }
+
+  dupes.forEach(function(d) {
+    var card = document.createElement('div');
+    card.className = 'dupe-card';
+
+    var header = document.createElement('div');
+    header.className = 'dupe-header';
+
+    var name = document.createElement('span');
+    name.className = 'dupe-name';
+    name.textContent = d.name || 'Unknown';
+
+    var type = d.type_data && d.type_data.type === 'bionic' ? 'bionic' : 'organic';
+    var badge = document.createElement('span');
+    badge.className = 'dupe-badge' + (type === 'bionic' ? ' bionic' : '');
+    badge.textContent = type;
+
+    var task = document.createElement('span');
+    task.className = 'dupe-task';
+    task.textContent = d.current_task || 'idle';
+
+    header.appendChild(name);
+    header.appendChild(badge);
+    header.appendChild(task);
+    card.appendChild(header);
+
+    card.appendChild(makeBar('Stress', d.stress, 'stress'));
+    card.appendChild(makeBar('Health', (d.health || 0) / 100, 'health')); // health is 0-100, normalize to 0-1
+    card.appendChild(makeBar('Hunger', d.hunger, 'hunger'));
+    card.appendChild(makeBar('Bladder', d.bladder, 'bladder'));
+    if (d.type_data && d.type_data.type === 'bionic') {
+      card.appendChild(makeBar('Charge', d.type_data.charge_pct, 'charge'));
+    }
+
+    // Attributes
+    var skills = d.skills || {};
+    var skillKeys = Object.keys(skills);
+    if (skillKeys.length > 0) {
+      var grid = document.createElement('div'); grid.className = 'attr-grid';
+      skillKeys.forEach(function(k) {
+        var chip = document.createElement('span'); chip.className = 'attr-chip';
+        chip.textContent = k + ' ' + skills[k];
+        grid.appendChild(chip);
+      });
+      card.appendChild(grid);
+    }
+
+    // Traits
+    var traits = d.traits || [];
+    if (traits.length > 0) {
+      var tlist = document.createElement('div'); tlist.className = 'trait-list';
+      traits.forEach(function(t) {
+        var pill = document.createElement('span'); pill.className = 'trait-pill';
+        pill.textContent = t;
+        tlist.appendChild(pill);
+      });
+      card.appendChild(tlist);
+    }
+
+    container.appendChild(card);
+  });
+}
+var _selectedTech = null;
+
+function renderResearch() {
+  var research = (state && state.research) || {};
+  var unlocked = research.unlocked || [];
+  var currentTech = research.current_tech;
+  var currentProgress = research.current_progress || 0;
+
+  setText('res-tech', currentTech || 'None');
+  document.getElementById('res-progress-fill').style.width = (currentProgress * 100).toFixed(1) + '%';
+  setText('res-pct', (currentProgress * 100).toFixed(0) + '%');
+
+  // Icon grid
+  document.getElementById('res-unlocked-header').textContent = 'Unlocked Technologies (' + unlocked.length + ')';
+  var grid = document.getElementById('res-icon-grid');
+  grid.textContent = '';
+  unlocked.forEach(function(techId) {
+    var icon = document.createElement('div');
+    icon.className = 'tech-icon' + (_selectedTech === techId ? ' selected' : '');
+    icon.setAttribute('data-tech', techId);
+
+    var check = document.createElement('span'); check.className = 'ti-check'; check.textContent = '✓';
+    var emoji = document.createElement('span'); emoji.className = 'ti-emoji'; emoji.textContent = '🔬';
+    var label = document.createElement('span'); label.className = 'ti-name';
+    label.textContent = techId.replace(/([A-Z])/g, ' $1').trim().slice(0, 10);
+
+    icon.appendChild(check); icon.appendChild(emoji); icon.appendChild(label);
+    icon.addEventListener('click', function() { selectTech(techId); });
+    grid.appendChild(icon);
+  });
+
+  // Pod
+  var pod = (state && state.printing_pod) || {};
+  var podCard = document.getElementById('pod-card');
+  var overdue = pod.overdue || false;
+  podCard.style.borderColor = overdue ? '#f0883e' : '#30363d';
+  setText('pod-status', pod.status || '—');
+  document.getElementById('pod-status').style.color = overdue ? '#f0883e' : '#8b949e';
+  setText('pod-timer', pod.timer || '—');
+
+  var offersEl = document.getElementById('pod-offers');
+  offersEl.textContent = '';
+  (pod.offers || []).forEach(function(o) {
+    var card = document.createElement('div'); card.className = 'offer-card';
+    var name = document.createElement('div'); name.className = 'offer-name'; name.textContent = o.name || o;
+    var detail = document.createElement('div'); detail.className = 'offer-detail'; detail.textContent = o.detail || '';
+    card.appendChild(name); card.appendChild(detail);
+    offersEl.appendChild(card);
   });
 }
 
-function send(action) {
-  if (!ws||ws.readyState!==WebSocket.OPEN){ alert('Not connected.'); return; }
-  ws.send(JSON.stringify(action));
+function selectTech(techId) {
+  _selectedTech = techId;
+  document.querySelectorAll('.tech-icon').forEach(function(el) {
+    el.classList.toggle('selected', el.getAttribute('data-tech') === techId);
+  });
+  var box = document.getElementById('res-detail-box');
+  document.getElementById('res-detail-name').textContent = techId;
+  document.getElementById('res-detail-cycle').textContent = '—';
+  var bld = document.getElementById('res-detail-buildings');
+  bld.textContent = '';
+  box.classList.add('visible');
+}
+function renderPerimeter() {
+  var peri = (state && state.perimeter) || {};
+  var rew = (state && state.reward) || {};
+
+  setText('peri-goal', peri.goal || '—');
+  setText('peri-bounds', peri.bounds && peri.bounds.length >= 2 ? '(' + peri.bounds[0] + ') → (' + peri.bounds[1] + ')' : '—');
+  setText('peri-blueprint', peri.blueprint || '—');
+  var pct = peri.progress_pct || 0;
+  document.getElementById('peri-prog-fill').style.width = pct + '%';
+  setText('peri-pct', pct + '% complete');
+  setText('peri-placed', peri.placed != null ? peri.placed + ' / ' + peri.total + ' buildings' : '');
+
+  // Task board
+  var tasksEl = document.getElementById('peri-tasks');
+  tasksEl.textContent = '';
+  var sections = [
+    { label: 'Completed', items: peri.tasks_done || [], state: 'done' },
+    { label: 'Up Next',   items: peri.tasks_next || [], state: 'next' },
+    { label: 'Blocked',   items: peri.tasks_blocked || [], state: 'blocked' },
+  ];
+  sections.forEach(function(s) {
+    if (s.items.length === 0) return;
+    var lbl = document.createElement('div');
+    lbl.style.cssText = 'font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#484f58;margin:6px 0 3px';
+    lbl.textContent = s.label;
+    tasksEl.appendChild(lbl);
+    s.items.forEach(function(t) {
+      var row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:3px 0;border-bottom:1px solid #21262d;font-size:12px';
+      var check = document.createElement('span');
+      check.style.color = s.state === 'done' ? '#3fb950' : s.state === 'next' ? '#58a6ff' : '#484f58';
+      check.textContent = s.state === 'done' ? '✓' : s.state === 'next' ? '▶' : '○';
+      var name = document.createElement('span');
+      name.style.cssText = 'flex:1' + (s.state === 'done' ? ';color:#484f58;text-decoration:line-through' : s.state === 'blocked' ? ';color:#484f58' : '');
+      name.textContent = typeof t === 'string' ? t : t.name;
+      row.appendChild(check); row.appendChild(name);
+      if (t.dep) {
+        var dep = document.createElement('span');
+        dep.style.cssText = 'font-size:10px;color:#484f58';
+        dep.textContent = t.dep;
+        row.appendChild(dep);
+      }
+      tasksEl.appendChild(row);
+    });
+  });
+
+  // Rewards
+  function fmtR(v) { return v != null ? (v >= 0 ? '+' : '') + v.toFixed(2) : '—'; }
+  setText('rew-tick', fmtR(rew.tick));
+  setText('rew-episode', fmtR(rew.episode));
+  setText('rew-survival', fmtR(rew.survival));
+  setText('rew-progress', fmtR(rew.progress));
+  setText('rew-event', fmtR(rew.event));
+
+  var openEl = document.getElementById('rew-open-events');
+  openEl.textContent = '';
+  (rew.open_events || []).forEach(function(e) {
+    var row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:6px;padding:3px 0;font-size:11px;border-bottom:1px solid #21262d';
+    var type = document.createElement('span'); type.style.color = '#f0883e'; type.textContent = e.type || e;
+    var detail = document.createElement('span'); detail.style.cssText = 'flex:1;color:#8b949e'; detail.textContent = e.detail || '';
+    var cost = document.createElement('span'); cost.style.cssText = 'font-weight:bold;color:#f85149'; cost.textContent = e.cost || '';
+    row.appendChild(type); row.appendChild(detail); row.appendChild(cost);
+    openEl.appendChild(row);
+  });
+
+  // History
+  var histEl = document.getElementById('peri-history');
+  histEl.textContent = '';
+  var hist = (state && state.perimeter_history) || [];
+  if (hist.length === 0) {
+    var em = document.createElement('div');
+    em.style.cssText = 'color:#484f58;font-style:italic;font-size:11px;padding:8px 0';
+    em.textContent = 'No archived perimeters yet.';
+    histEl.appendChild(em);
+  } else {
+    hist.forEach(function(h) {
+      var row = document.createElement('div');
+      row.style.cssText = 'display:flex;gap:8px;align-items:center;padding:4px 0;border-bottom:1px solid #21262d;font-size:11px';
+      var goal = document.createElement('span'); goal.style.cssText = 'color:#a371f7;width:100px;flex-shrink:0'; goal.textContent = h.goal;
+      var bounds = document.createElement('span'); bounds.style.cssText = 'flex:1;color:#484f58'; bounds.textContent = h.summary || '';
+      var result = document.createElement('span'); result.style.cssText = 'font-weight:bold;color:' + (h.result === 'complete' ? '#3fb950' : '#484f58');
+      result.textContent = h.result === 'complete' ? '✓ complete' : h.result || '—';
+      row.appendChild(goal); row.appendChild(bounds); row.appendChild(result);
+      histEl.appendChild(row);
+    });
+  }
+}
+var BADGE_CLASS = {
+  'action': 'lb-action', 'ack-ok': 'lb-ack-ok', 'ack-fail': 'lb-ack-fail',
+  'reward': 'lb-reward', 'agent': 'lb-agent', 'error': 'lb-error', 'event': 'lb-event',
+};
+var BADGE_LABEL = {
+  'action': 'action', 'ack-ok': 'ack ✓', 'ack-fail': 'ack ✗',
+  'reward': 'reward', 'agent': 'agent', 'error': 'error', 'event': 'event',
+};
+var _logFilters = { all: true, action: true, ack: true, reward: true, event: true, agent: true, error: true };
+
+function toggleFilter(el) {
+  var f = el.getAttribute('data-filter');
+  _logFilters[f] = !_logFilters[f];
+  if (f === 'all' && _logFilters.all) {
+    // Turning All on: sync all individual filters to on
+    Object.keys(_logFilters).forEach(function(k) { _logFilters[k] = true; });
+    document.querySelectorAll('#log-filters .fpill').forEach(function(pill) {
+      pill.classList.add('on');
+    });
+  } else {
+    el.classList.toggle('on', _logFilters[f]);
+  }
+  renderLog();
+}
+
+function renderLog() {
+  // Stats
+  setText('ls-ticks', sessionStats.ticks);
+  setText('ls-actions', sessionStats.actions);
+  setText('ls-ack-ok', sessionStats.ackOk);
+  setText('ls-ack-fail', sessionStats.ackFail);
+  setText('ls-noops', sessionStats.noops);
+  setText('ls-errors', sessionStats.errors);
+  setText('ls-phase', state.phase != null ? state.phase : '—');
+  setText('ls-cycle', state.cycle != null ? state.cycle + ' / 100' : '—');
+  var rew = (state && state.reward) || {};
+  setText('ls-reward', rew.episode != null ? (rew.episode >= 0 ? '+' : '') + rew.episode.toFixed(1) : '—');
+
+  // Feed
+  var feed = document.getElementById('log-feed');
+  if (!feed) return;
+  var wasAtBottom = feed.scrollHeight - feed.scrollTop - feed.clientHeight < 40;
+  feed.textContent = '';
+
+  var shown = logEntries.filter(function(e) {
+    if (_logFilters.all) return true;
+    var cat = e.type.startsWith('ack') ? 'ack' : e.type;
+    return _logFilters[cat];
+  });
+
+  shown.slice(-200).forEach(function(e) {
+    var row = document.createElement('div'); row.className = 'log-entry';
+    var ts = document.createElement('span'); ts.className = 'log-ts'; ts.textContent = e.ts;
+    var badge = document.createElement('span');
+    badge.className = 'log-badge ' + (BADGE_CLASS[e.type] || 'lb-agent');
+    badge.textContent = BADGE_LABEL[e.type] || e.type;
+    var msg = document.createElement('span');
+    msg.className = 'log-msg' + (e.type === 'agent' && e.msg && e.msg.includes('no_op') ? ' muted' : '');
+    msg.textContent = e.msg;
+    row.appendChild(ts); row.appendChild(badge); row.appendChild(msg);
+    feed.appendChild(row);
+  });
+
+  if (wasAtBottom) feed.scrollTop = feed.scrollHeight;
+}
+var _cfgProfiles = [];
+var _cfgActiveId = null;
+var _cfgSelectedId = null;
+
+function loadConfig() {
+  fetch('/config/profiles').then(function(r) { return r.json(); }).then(function(data) {
+    _cfgProfiles = data.profiles || [];
+    _cfgActiveId = data.active_id;
+    renderProfileList();
+    if (_cfgProfiles.length > 0) selectProfile(_cfgProfiles[0].id);
+  });
+  fetch('/config/game').then(function(r) { return r.json(); }).then(function(data) {
+    if (document.getElementById('cfg-game-host')) {
+      document.getElementById('cfg-game-host').value = data.host || '';
+      document.getElementById('cfg-game-port').value = data.port || '';
+    }
+  });
+  fetch('/runner/status').then(function(r) { return r.json(); }).then(function(data) {
+    updateRunnerBadge(data);
+  });
+}
+
+function renderConfig() {
+  var badge = document.getElementById('cfg-runner-badge');
+  if (!badge) return;
+  fetch('/runner/status').then(function(r) { return r.json(); }).then(function(data) {
+    updateRunnerBadge(data);
+  });
+}
+
+function updateRunnerBadge(data) {
+  var badge = document.getElementById('cfg-runner-badge');
+  if (!badge) return;
+  if (data.running) {
+    var uptime = data.uptime_seconds != null ? ' · uptime ' + fmtUptime(data.uptime_seconds) : '';
+    badge.className = 'conn-badge ok';
+    badge.textContent = '● Running — pid ' + data.pid + uptime;
+  } else {
+    badge.className = 'conn-badge idle';
+    badge.textContent = '● Stopped';
+  }
+}
+
+function fmtUptime(sec) {
+  var h = Math.floor(sec / 3600); var m = Math.floor((sec % 3600) / 60); var s = Math.floor(sec % 60);
+  return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+}
+
+function renderProfileList() {
+  var list = document.getElementById('cfg-profile-list');
+  if (!list) return;
+  list.textContent = '';
+  _cfgProfiles.forEach(function(p) {
+    var row = document.createElement('div');
+    row.className = 'profile-row' + (_cfgSelectedId === p.id ? ' selected' : '');
+    row.setAttribute('data-id', p.id);
+
+    var dot = document.createElement('span');
+    dot.className = 'profile-dot' + (p.id === _cfgActiveId ? ' active' : '');
+
+    var info = document.createElement('div'); info.className = 'profile-info';
+    var nm = document.createElement('span'); nm.className = 'profile-name-text'; nm.textContent = p.name;
+    var sub = document.createElement('span'); sub.className = 'profile-sub';
+    sub.textContent = (p.endpoint_url || '').replace('http://', '').replace('https://', '').split('/')[0] + ' · ' + (p.model || '');
+    info.appendChild(nm); info.appendChild(sub);
+
+    row.appendChild(dot); row.appendChild(info);
+    if (p.id === _cfgActiveId) {
+      var badge = document.createElement('span'); badge.className = 'profile-active-badge'; badge.textContent = 'Active';
+      row.appendChild(badge);
+    }
+    row.addEventListener('click', function() { selectProfile(p.id); });
+    list.appendChild(row);
+  });
+}
+
+function selectProfile(id) {
+  _cfgSelectedId = id;
+  var p = _cfgProfiles.find(function(x) { return x.id === id; });
+  if (!p) return;
+  renderProfileList();
+  document.getElementById('cfg-edit-section').style.display = 'block';
+  document.getElementById('cfg-edit-label').textContent = 'Edit: ' + p.name;
+  document.getElementById('cfg-f-name').value = p.name || '';
+  document.getElementById('cfg-f-url').value = p.endpoint_url || '';
+  document.getElementById('cfg-f-model').value = p.model || '';
+  document.getElementById('cfg-f-key').value = p.api_key || '';
+  document.getElementById('cfg-f-vision').value = p.vision_enabled ? 'true' : 'false';
+}
+
+function cfgSaveProfile() {
+  if (!_cfgSelectedId) return;
+  var updates = {
+    name: document.getElementById('cfg-f-name').value,
+    endpoint_url: document.getElementById('cfg-f-url').value,
+    model: document.getElementById('cfg-f-model').value,
+    api_key: document.getElementById('cfg-f-key').value,
+    vision_enabled: document.getElementById('cfg-f-vision').value === 'true',
+  };
+  fetch('/config/profiles/' + _cfgSelectedId, {
+    method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(updates)
+  }).then(function() { loadConfig(); });
+}
+
+function cfgSetActive() {
+  if (!_cfgSelectedId) return;
+  fetch('/config/profiles/' + _cfgSelectedId + '/activate', { method: 'POST' })
+    .then(function() { loadConfig(); });
+}
+
+function cfgDeleteProfile() {
+  if (!_cfgSelectedId) return;
+  if (!confirm('Delete this profile?')) return;
+  fetch('/config/profiles/' + _cfgSelectedId, { method: 'DELETE' })
+    .then(function(r) {
+      if (r.ok) { _cfgSelectedId = null; document.getElementById('cfg-edit-section').style.display = 'none'; loadConfig(); }
+      else { r.json().then(function(d) { alert(d.error || 'Cannot delete'); }); }
+    });
+}
+
+function cfgAddProfile() {
+  fetch('/config/profiles', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ name: 'New Profile', endpoint_url: '', model: '', api_key: '', vision_enabled: false })
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    var newId = d.id;
+    fetch('/config/profiles').then(function(r2) { return r2.json(); }).then(function(data) {
+      _cfgProfiles = data.profiles || [];
+      _cfgActiveId = data.active_id;
+      renderProfileList();
+      selectProfile(newId);
+    });
+  });
+}
+
+function cfgApplyGame() {
+  var host = document.getElementById('cfg-game-host').value;
+  var port = parseInt(document.getElementById('cfg-game-port').value, 10);
+  fetch('/config/game', {
+    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ host: host, port: port })
+  }).then(function() {
+    var badge = document.getElementById('cfg-game-badge');
+    badge.className = 'conn-badge ok'; badge.textContent = '● Applied';
+  });
+}
+
+function cfgTestGame() {
+  var badge = document.getElementById('cfg-game-badge');
+  badge.className = 'conn-badge idle'; badge.textContent = '● Testing...';
+  fetch('/runner/status').then(function(r) { return r.json(); }).then(function(d) {
+    badge.className = d.running ? 'conn-badge ok' : 'conn-badge idle';
+    badge.textContent = d.running ? '● Runner connected' : '● Runner not running';
+  });
+}
+
+function cfgRestartRunner() {
+  fetch('/runner/stop', { method: 'POST' }).then(function() {
+    return fetch('/runner/start', { method: 'POST' });
+  }).then(function() { renderConfig(); });
+}
+
+function cfgStopRunner() {
+  fetch('/runner/stop', { method: 'POST' }).then(function() { renderConfig(); });
+}
+function renderHealthStrip() {
+  var r = rewardData;
+  if (r.tick != null) {
+    var tickEl = document.getElementById('hs-tick');
+    tickEl.textContent = (r.tick >= 0 ? '+' : '') + r.tick.toFixed(2);
+    tickEl.className = 'hs-val ' + (r.tick >= 0 ? 'ok' : 'neg');
+  }
+  setText('hs-episode', r.episode != null ? (r.episode >= 0 ? '+' : '') + r.episode.toFixed(1) : '—');
+  if (r.survival != null) setText('hs-survival', r.survival);
+  var obl = document.getElementById('hs-obligations');
+  obl.textContent = '';
+  (r.obligations || []).forEach(function(o) {
+    var span = document.createElement('span');
+    span.className = 'obligation';
+    span.textContent = '⚠ ' + o;
+    obl.appendChild(span);
+  });
+  setText('hs-phase', state.phase != null ? 'Phase ' + state.phase + ' · cycle ' + (state.cycle || 0) + '/100' : '');
+}
+
+// ── Log helper ──
+function addLogEntry(type, msg) {
+  logEntries.push({ ts: new Date().toLocaleTimeString('en',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'}), type: type, msg: msg });
+  if (logEntries.length > 500) logEntries.shift();
 }
 
 connect();

@@ -20,7 +20,10 @@ import asyncio
 import json
 import logging
 import subprocess
+import uuid
+import time
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import uvicorn
 import websockets
@@ -37,8 +40,42 @@ RELAY_URL  = f"ws://{RELAY_HOST}:{RELAY_PORT}/ws"
 GAME_HOST  = "10.0.0.10"
 GAME_PORT  = 9999
 
-# Read API key from env (set once when you start the dashboard)
-GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", "")
+
+# ---------------------------------------------------------------------------
+# Config persistence
+# ---------------------------------------------------------------------------
+
+_PROFILES_PATH = Path(os.environ.get(
+    "LLM_PROFILES_PATH",
+    os.path.join(os.path.dirname(__file__), "llm_profiles.json")
+))
+
+_GAME_CONFIG: dict = {"host": GAME_HOST, "port": GAME_PORT}
+_runner_start_time: float | None = None
+
+
+def _load_profiles() -> dict:
+    if _PROFILES_PATH.exists():
+        with open(_PROFILES_PATH) as f:
+            return json.load(f)
+    default = {
+        "active_id": "default",
+        "profiles": [{
+            "id": "default",
+            "name": "Default",
+            "endpoint_url": f"http://{GAME_HOST}:8000/v1",
+            "model": "Qwen/Qwen2.5-72B-Instruct-AWQ",
+            "api_key": "",
+            "vision_enabled": False,
+        }]
+    }
+    _save_profiles(default)
+    return default
+
+
+def _save_profiles(data: dict) -> None:
+    with open(_PROFILES_PATH, "w") as f:
+        json.dump(data, f, indent=2)
 
 
 # ---------------------------------------------------------------------------
@@ -52,32 +89,47 @@ def runner_running() -> bool:
     return _runner_proc is not None and _runner_proc.poll() is None
 
 
-def start_runner() -> dict:
-    global _runner_proc
-    if runner_running():
-        return {"ok": False, "error": "Runner already running", "pid": _runner_proc.pid}
-    if not GOOGLE_API_KEY:
-        return {"ok": False, "error": "GOOGLE_API_KEY not set in dashboard environment"}
+def _build_runner_cmd() -> list[str]:
+    """Build the runner subprocess command from the active LLM profile."""
+    data = _load_profiles()
+    active_id = data.get("active_id")
+    profile = next((p for p in data.get("profiles", []) if p["id"] == active_id), None)
 
     cmd = [
         sys.executable, "-m", "src.agent.runner",
-        "--host", GAME_HOST,
-        "--port", str(GAME_PORT),
-        "--api-key", GOOGLE_API_KEY,
+        "--host", _GAME_CONFIG["host"],
+        "--port", str(_GAME_CONFIG["port"]),
         "--log-episode", "episodes/run1.json",
     ]
+    if profile:
+        cmd += ["--endpoint", profile.get("endpoint_url", "")]
+        cmd += ["--model", profile.get("model", "")]
+        if profile.get("api_key"):
+            cmd += ["--api-key", profile["api_key"]]
+        if profile.get("vision_enabled"):
+            cmd += ["--vision"]
+    return cmd
+
+
+def start_runner() -> dict:
+    global _runner_proc, _runner_start_time
+    if runner_running():
+        return {"ok": False, "error": "Runner already running", "pid": _runner_proc.pid}
+
+    cmd = _build_runner_cmd()
     _runner_proc = subprocess.Popen(
         cmd,
         cwd=os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
     )
+    _runner_start_time = time.time()
     logger.info("Runner started (pid %d)", _runner_proc.pid)
     return {"ok": True, "pid": _runner_proc.pid}
 
 
 def stop_runner() -> dict:
-    global _runner_proc
+    global _runner_proc, _runner_start_time
     if not runner_running():
         return {"ok": False, "error": "Runner not running"}
     pid = _runner_proc.pid
@@ -87,6 +139,7 @@ def stop_runner() -> dict:
     except subprocess.TimeoutExpired:
         _runner_proc.kill()
     _runner_proc = None
+    _runner_start_time = None
     logger.info("Runner stopped (pid %d)", pid)
     return {"ok": True, "pid": pid}
 
@@ -170,11 +223,6 @@ async def index():
         return f.read()
 
 
-@app.get("/runner/status")
-async def runner_status():
-    return {"running": runner_running(), "pid": _runner_proc.pid if runner_running() else None}
-
-
 @app.post("/runner/start")
 async def runner_start():
     result = start_runner()
@@ -219,6 +267,88 @@ async def websocket_endpoint(ws: WebSocket):
     except WebSocketDisconnect:
         if ws in browser_clients:
             browser_clients.remove(ws)
+
+
+# ---------------------------------------------------------------------------
+# Config endpoints
+# ---------------------------------------------------------------------------
+
+@app.get("/config/profiles")
+async def get_profiles():
+    return _load_profiles()
+
+
+@app.post("/config/profiles")
+async def add_profile(profile: dict):
+    data = _load_profiles()
+    safe = {
+        "name": profile.get("name", ""),
+        "endpoint_url": profile.get("endpoint_url", ""),
+        "model": profile.get("model", ""),
+        "api_key": profile.get("api_key", ""),
+        "vision_enabled": bool(profile.get("vision_enabled", False)),
+    }
+    safe["id"] = str(uuid.uuid4())[:8]
+    data["profiles"].append(safe)
+    _save_profiles(data)
+    return {"ok": True, "id": safe["id"]}
+
+
+@app.put("/config/profiles/{profile_id}")
+async def update_profile(profile_id: str, updates: dict):
+    data = _load_profiles()
+    for p in data["profiles"]:
+        if p["id"] == profile_id:
+            p.update(updates)
+            p["id"] = profile_id  # prevent id overwrite
+            _save_profiles(data)
+            return {"ok": True}
+    return JSONResponse({"ok": False, "error": "not found"}, status_code=404)
+
+
+@app.delete("/config/profiles/{profile_id}")
+async def delete_profile(profile_id: str):
+    data = _load_profiles()
+    if data["active_id"] == profile_id:
+        return JSONResponse({"ok": False, "error": "cannot delete active profile"}, status_code=400)
+    data["profiles"] = [p for p in data["profiles"] if p["id"] != profile_id]
+    _save_profiles(data)
+    return {"ok": True}
+
+
+@app.post("/config/profiles/{profile_id}/activate")
+async def activate_profile(profile_id: str):
+    data = _load_profiles()
+    if not any(p["id"] == profile_id for p in data["profiles"]):
+        return JSONResponse({"ok": False, "error": "not found"}, status_code=404)
+    data["active_id"] = profile_id
+    _save_profiles(data)
+    return {"ok": True}
+
+
+@app.get("/config/game")
+async def get_game_config():
+    return _GAME_CONFIG
+
+
+@app.post("/config/game")
+async def set_game_config(cfg: dict):
+    global _GAME_CONFIG
+    _GAME_CONFIG["host"] = cfg.get("host", _GAME_CONFIG["host"])
+    _GAME_CONFIG["port"] = int(cfg.get("port", _GAME_CONFIG["port"]))
+    return {"ok": True}
+
+
+@app.get("/runner/status")
+async def runner_status():
+    uptime = None
+    if runner_running() and _runner_start_time is not None:
+        uptime = int(time.time() - _runner_start_time)
+    return {
+        "running": runner_running(),
+        "pid": _runner_proc.pid if runner_running() else None,
+        "uptime_seconds": uptime,
+    }
 
 
 if __name__ == "__main__":

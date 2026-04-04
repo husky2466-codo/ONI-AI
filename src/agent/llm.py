@@ -147,6 +147,14 @@ ManualGenerator → Wire → Battery → Wire → (OxygenDiffuser, MicrobeMusher
 6. MicrobeMusher wired to power, assign Mush Bar recipe
 7. ResearchCenter, start Sanitation research
 
+## Spatial Perimeter System
+Use perimeters to declare a focused construction zone. One active perimeter at a time.
+  place_perimeter: declare a build zone with a goal. The task board will tell you what to build.
+  abandon_perimeter: cancel current perimeter (auto-abandon happens at 100% completion).
+Goals: "base_camp", "survival", "oxygen_production"
+When a perimeter is active, follow the task board — build the listed buildings in order.
+Do NOT place_perimeter if one is already active (it will be rejected).
+
 ## Response format
 Output ONLY a single JSON object — no explanation, no markdown, no code fences:
   {"type": "action", "action": "no_op"}
@@ -154,10 +162,15 @@ Output ONLY a single JSON object — no explanation, no markdown, no code fences
   {"type": "action", "action": "cancel_dig", "cell_x": <int>, "cell_y": <int>}
   {"type": "action", "action": "place_building", "building_id": "<id>", "cell_x": <int>, "cell_y": <int>}
   {"type": "action", "action": "set_priority", "cell_x": <int>, "cell_y": <int>, "priority": <1-9>}
+  {"type": "action", "action": "place_perimeter", "x1": <int>, "y1": <int>, "x2": <int>, "y2": <int>, "goal": "<goal>"}
+  {"type": "action", "action": "abandon_perimeter"}
+  {"type": "action", "action": "assign_research", "tech_id": "<id>"}
+  {"type": "action", "action": "enable_building", "cell_x": <int>, "cell_y": <int>, "enabled": <bool>}
+  {"type": "action", "action": "accept_print", "offer_index": <0|1|2>}
 """
 
 
-def _format_state(data: dict[str, Any]) -> str:
+def _format_state(data: dict[str, Any], pending_action: "dict | None" = None, ledger_context: str = "", colony_health: str = "") -> str:
     """Format a state snapshot dict into a concise prompt string."""
     res = data.get("resources", {})
     dups = data.get("duplicants", [])
@@ -222,6 +235,29 @@ def _format_state(data: dict[str, Any]) -> str:
         for s in survival:
             lines.append(f"  ! {s}")
 
+    if pending_action:
+        act = pending_action.get("action", "?")
+        details = ""
+        if act in ("dig", "cancel_dig", "place_building", "set_priority"):
+            cx, cy = pending_action.get("cell_x", "?"), pending_action.get("cell_y", "?")
+            details = f" @({cx},{cy})"
+            if act == "place_building":
+                details = f" {pending_action.get('building_id','?')}{details}"
+        elif act == "set_speed":
+            details = f" speed={pending_action.get('speed','?')}"
+        lines.append("")
+        lines.append(f"Last action sent (may still be in progress): {act}{details}")
+        lines.append("Use no_op if duplicants are still executing it.")
+
+    if ledger_context:
+        lines.append("")
+        lines.append("Spatial Ledger:")
+        lines.append(ledger_context)
+
+    if colony_health:
+        lines.append("")
+        lines.append(colony_health)
+
     tile_summary = _summarize_tiles(data.get("tiles", {}))
     if tile_summary:
         lines.append("")
@@ -273,7 +309,7 @@ class GeminiAgent:
             "cost_usd":      round(self.total_cost_usd, 6),
         }
 
-    def decide(self, state_data: dict[str, Any]) -> dict[str, Any]:
+    def decide(self, state_data: dict[str, Any], pending_action: "dict | None" = None, ledger_context: str = "", colony_health: str = "") -> dict[str, Any]:
         """
         Given a state snapshot dict, return an ActionCommand dict.
         Gemini may call search_wiki() up to 2 times before returning its action.
@@ -296,7 +332,7 @@ class GeminiAgent:
         )
         tool = _types.Tool(function_declarations=[search_wiki_fn])
 
-        prompt = _format_state(state_data)
+        prompt = _format_state(state_data, pending_action=pending_action, ledger_context=ledger_context, colony_health=colony_health)
         contents = [prompt]
         max_wiki_calls = 2
         wiki_calls = 0
@@ -402,6 +438,23 @@ class GeminiAgent:
             elif action == "set_speed":
                 return build_action(action,
                     speed=max(0, min(3, int(obj.get("speed", 1)))))
+            elif action == "place_perimeter":
+                return build_action(action,
+                    x1=int(obj["x1"]), y1=int(obj["y1"]),
+                    x2=int(obj["x2"]), y2=int(obj["y2"]),
+                    goal=str(obj.get("goal", "unknown")))
+            elif action == "abandon_perimeter":
+                return build_action(action)
+            elif action == "assign_research":
+                return build_action(action, tech_id=str(obj["tech_id"]))
+            elif action == "enable_building":
+                return build_action(action,
+                    cell_x=int(obj["cell_x"]),
+                    cell_y=int(obj["cell_y"]),
+                    enabled=bool(obj.get("enabled", True)))
+            elif action == "accept_print":
+                return build_action(action,
+                    offer_index=max(0, min(2, int(obj.get("offer_index", 0)))))
         except (KeyError, ValueError, TypeError) as e:
             logger.warning("Action param error: %s — raw: %r", e, raw)
             return build_no_op()

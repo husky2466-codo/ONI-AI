@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace ONIBridge
@@ -30,6 +31,110 @@ namespace ONIBridge
                     case "no_op":
                         BridgeServer.Instance.SendAck(cmd.Action, true);
                         break;
+                    case "place_perimeter":
+                    {
+                        int x1 = cmd.GetInt("x1"), y1 = cmd.GetInt("y1");
+                        int x2 = cmd.GetInt("x2"), y2 = cmd.GetInt("y2");
+                        string goal = cmd.GetString("goal") ?? "unknown";
+                        bool ok = PerimeterManager.Place(x1, y1, x2, y2, goal);
+                        if (ok)
+                            BridgeServer.Instance.SendAck(cmd.Action, true);
+                        else
+                            BridgeServer.Instance.SendAck(cmd.Action, false, "perimeter_already_active");
+                        break;
+                    }
+                    case "abandon_perimeter":
+                    {
+                        PerimeterManager.Abandon();
+                        BridgeServer.Instance.SendAck(cmd.Action, true);
+                        break;
+                    }
+                    case "assign_research":
+                    {
+                        string techId = cmd.GetString("tech_id");
+                        if (string.IsNullOrEmpty(techId))
+                        {
+                            BridgeServer.Instance.SendAck(cmd.Action, false, "tech_id is required");
+                            break;
+                        }
+                        var research = Research.Instance;
+                        if (research == null)
+                        {
+                            BridgeServer.Instance.SendAck(cmd.Action, false, "Research.Instance unavailable");
+                            break;
+                        }
+                        Tech tech = null;
+                        try { tech = Db.Get().Techs.Get(techId); } catch { }
+                        if (tech == null)
+                        {
+                            BridgeServer.Instance.SendAck(cmd.Action, false, $"Unknown tech: {techId}");
+                            break;
+                        }
+                        var ti = research.GetTechInstance(techId);
+                        if (ti != null && ti.IsComplete())
+                        {
+                            BridgeServer.Instance.SendAck(cmd.Action, false, "tech_already_complete");
+                            break;
+                        }
+                        research.SetActiveResearch(tech);
+                        BridgeServer.Instance.SendAck(cmd.Action, true);
+                        Debug.Log($"[ONIBridge] Active research set to {techId}");
+                        break;
+                    }
+                    case "enable_building":
+                    {
+                        int cell = Grid.XYToCell(cmd.CellX, cmd.CellY);
+                        if (!Grid.IsValidCell(cell))
+                        {
+                            BridgeServer.Instance.SendAck(cmd.Action, false, $"Invalid cell ({cmd.CellX},{cmd.CellY})");
+                            break;
+                        }
+                        var go = Grid.Objects[cell, (int)ObjectLayer.Building];
+                        if (go == null)
+                        {
+                            BridgeServer.Instance.SendAck(cmd.Action, false, "No building at cell");
+                            break;
+                        }
+                        var toggle = go.GetComponent<BuildingEnabledButton>();
+                        if (toggle == null)
+                        {
+                            BridgeServer.Instance.SendAck(cmd.Action, false, "Building does not support enable/disable");
+                            break;
+                        }
+                        bool enabled = cmd.GetBool("enabled");
+                        toggle.IsEnabled = enabled;
+                        BridgeServer.Instance.SendAck(cmd.Action, true);
+                        Debug.Log($"[ONIBridge] Building at ({cmd.CellX},{cmd.CellY}) enabled={enabled}");
+                        break;
+                    }
+                    case "accept_print":
+                    {
+                        int offerIndex = cmd.GetInt("offer_index");
+                        if (offerIndex < 0 || offerIndex > 2)
+                        {
+                            BridgeServer.Instance.SendAck(cmd.Action, false, "offer_index_out_of_range");
+                            break;
+                        }
+                        var immigration = Immigration.Instance;
+                        if (immigration == null)
+                        {
+                            BridgeServer.Instance.SendAck(cmd.Action, false, "immigration_unavailable");
+                            break;
+                        }
+                        // Check if offer is available — field name to be verified via decompile
+                        bool hasOffer = false;
+                        try { hasOffer = immigration.ImmigrantsAvailable; }
+                        catch { }
+                        if (!hasOffer)
+                        {
+                            BridgeServer.Instance.SendAck(cmd.Action, false, "error_no_active_offer");
+                            break;
+                        }
+                        // DECOMPILE REQUIRED: Immigration.AcceptImmigrant method not yet verified.
+                        // Signal Python side to use xdotool fallback until confirmed.
+                        BridgeServer.Instance.SendAck(cmd.Action, false, "xdotool_required:accept_print_needs_decompile");
+                        break;
+                    }
                     case "set_speed":
                     {
                         int speed = cmd.Speed ?? 1;
