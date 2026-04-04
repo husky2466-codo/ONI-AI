@@ -173,7 +173,22 @@ goes through a clean C# API or is purely UI-driven is unknown without decompilin
 ```csharp
 case "accept_print":
 {
+    // Guard: no active offer available
+    var immigration = Immigration.Instance;
+    if (immigration == null) return "error_immigration_unavailable";
+
+    // Verify the pod is actually waiting for a decision before accepting.
+    // Without this guard, calling accept when no offer is active fails silently
+    // or corrupts state. Return a specific error code so the Python side can
+    // detect and surface it to the AI rather than logging a silent no-op.
+    // Exact condition to verify via decompile (e.g. immigration.HasImmigrant()
+    // or immigration.timeBeforeSpawn <= 0f or similar readiness flag).
+    if (!immigration.HasImmigrant())  // verify method name
+        return "error_no_active_offer";
+
     int offerIndex = cmd.GetInt("offer_index");  // 0, 1, or 2
+    if (offerIndex < 0 || offerIndex > 2) return "error_invalid_offer_index";
+
     // Call Immigration.Instance acceptance API
     // Verify: Immigration.Instance.AcceptImmigrant(int index) or similar
     return "ok";
@@ -224,6 +239,15 @@ VALID_ACTIONS = {
 | `cancel_build(x, y)` | Low priority — agent can work around by not issuing conflicting builds |
 | `set_building_filter(x, y, filter)` | Phase 2 — needed for advanced storage management |
 | `open_settings` | UI-automation only, already exists via dashboard, not an AI action |
+
+---
+
+## Architecture Note — Promote to CLAUDE.md
+
+The Harmony-direct vs. UI-automation distinction is a governing design principle for
+every future action added to this system. It should be added to `CLAUDE.md` under
+Architecture before the next development session so it's visible to all future Claude
+instances working on this codebase and doesn't have to be rediscovered.
 
 ---
 
