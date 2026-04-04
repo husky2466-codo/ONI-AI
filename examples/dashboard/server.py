@@ -93,7 +93,7 @@ def runner_running() -> bool:
 
 
 def start_runner() -> dict:
-    global _runner_proc
+    global _runner_proc, _runner_start_time
     if runner_running():
         return {"ok": False, "error": "Runner already running", "pid": _runner_proc.pid}
     if not GOOGLE_API_KEY:
@@ -118,7 +118,7 @@ def start_runner() -> dict:
 
 
 def stop_runner() -> dict:
-    global _runner_proc
+    global _runner_proc, _runner_start_time
     if not runner_running():
         return {"ok": False, "error": "Runner not running"}
     pid = _runner_proc.pid
@@ -270,10 +270,17 @@ async def get_profiles():
 @app.post("/config/profiles")
 async def add_profile(profile: dict):
     data = _load_profiles()
-    profile["id"] = str(uuid.uuid4())[:8]
-    data["profiles"].append(profile)
+    safe = {
+        "name": profile.get("name", ""),
+        "endpoint_url": profile.get("endpoint_url", ""),
+        "model": profile.get("model", ""),
+        "api_key": profile.get("api_key", ""),
+        "vision_enabled": bool(profile.get("vision_enabled", False)),
+    }
+    safe["id"] = str(uuid.uuid4())[:8]
+    data["profiles"].append(safe)
     _save_profiles(data)
-    return {"ok": True, "id": profile["id"]}
+    return {"ok": True, "id": safe["id"]}
 
 
 @app.put("/config/profiles/{profile_id}")
