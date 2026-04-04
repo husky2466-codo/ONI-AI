@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import json
 import logging
+import sqlite3 as _sqlite3
+from pathlib import Path
 from typing import Any
 
 from google import genai
@@ -260,6 +262,7 @@ class GeminiAgent:
         self.total_output_tokens = 0
         self.total_calls         = 0
         self.total_cost_usd      = 0.0
+        self._wiki_db = "data/wiki.db"
 
     @property
     def stats(self) -> dict:
@@ -273,34 +276,86 @@ class GeminiAgent:
     def decide(self, state_data: dict[str, Any]) -> dict[str, Any]:
         """
         Given a state snapshot dict, return an ActionCommand dict.
+        Gemini may call search_wiki() up to 2 times before returning its action.
         Falls back to no_op on any failure.
         """
-        prompt = _format_state(state_data)
-        try:
-            response = self._client.models.generate_content(
-                model=self._model,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    system_instruction=SYSTEM_PROMPT,
-                    temperature=0.2,
-                    max_output_tokens=1024,
-                    thinking_config=types.ThinkingConfig(thinking_budget=0),
-                ),
-            )
-            # Track token usage and cost
-            usage = response.usage_metadata
-            if usage:
-                inp  = usage.prompt_token_count or 0
-                out  = usage.candidates_token_count or 0
-                self.total_input_tokens  += inp
-                self.total_output_tokens += out
-                self.total_calls         += 1
-                self.total_cost_usd += (inp / 1_000_000) * _COST_INPUT_PER_M
-                self.total_cost_usd += (out / 1_000_000) * _COST_OUTPUT_PER_M
+        from google.genai import types as _types
 
-            raw = response.text.strip()
-            logger.debug("Gemini raw response: %s", raw)
-            return self._parse_action(raw)
+        search_wiki_fn = _types.FunctionDeclaration(
+            name="search_wiki",
+            description=(
+                "Search the ONI wiki for game data: building stats, element properties, "
+                "food recipes, or research costs. Use this when you need to look up "
+                "a building's power draw, inputs, outputs, or size before placing it."
+            ),
+            parameters=_types.Schema(
+                type=_types.Type.OBJECT,
+                properties={"query": _types.Schema(type=_types.Type.STRING)},
+                required=["query"],
+            ),
+        )
+        tool = _types.Tool(function_declarations=[search_wiki_fn])
+
+        prompt = _format_state(state_data)
+        contents = [prompt]
+        max_wiki_calls = 2
+        wiki_calls = 0
+
+        try:
+            while True:
+                response = self._client.models.generate_content(
+                    model=self._model,
+                    contents=contents,
+                    config=_types.GenerateContentConfig(
+                        system_instruction=SYSTEM_PROMPT,
+                        temperature=0.2,
+                        max_output_tokens=1024,
+                        thinking_config=_types.ThinkingConfig(thinking_budget=0),
+                        tools=[tool],
+                    ),
+                )
+
+                # Track token usage and cost
+                usage = response.usage_metadata
+                if usage:
+                    inp = usage.prompt_token_count or 0
+                    out = usage.candidates_token_count or 0
+                    self.total_input_tokens  += inp
+                    self.total_output_tokens += out
+                    self.total_calls         += 1
+                    self.total_cost_usd += (inp / 1_000_000) * _COST_INPUT_PER_M
+                    self.total_cost_usd += (out / 1_000_000) * _COST_OUTPUT_PER_M
+
+                # Check for function call
+                candidate = response.candidates[0] if response.candidates else None
+                fn_call = None
+                if candidate and candidate.content and candidate.content.parts:
+                    for part in candidate.content.parts:
+                        if hasattr(part, "function_call") and part.function_call:
+                            fn_call = part.function_call
+                            break
+
+                if fn_call and fn_call.name == "search_wiki" and wiki_calls < max_wiki_calls:
+                    query = fn_call.args.get("query", "")
+                    logger.info("  -> Gemini wiki call: %r", query)
+                    wiki_result = self._search_wiki(query)
+                    wiki_calls += 1
+
+                    # Append assistant turn + function response to contents
+                    contents.append(candidate.content)
+                    contents.append(_types.Content(parts=[
+                        _types.Part(function_response=_types.FunctionResponse(
+                            name="search_wiki",
+                            response={"result": wiki_result},
+                        ))
+                    ]))
+                    continue  # loop again with wiki result in context
+
+                # No function call — parse the action text
+                raw = response.text.strip() if response.text else ""
+                logger.debug("Gemini raw response: %s", raw)
+                return self._parse_action(raw)
+
         except Exception as e:
             logger.warning("Gemini call failed: %s — sending no_op", e)
             return build_no_op()
@@ -346,3 +401,28 @@ class GeminiAgent:
             return build_no_op()
 
         return build_no_op()
+
+    def _search_wiki(self, query: str) -> str:
+        """Query the local ONI wiki SQLite database. Returns top 3 results."""
+        if not Path(self._wiki_db).exists():
+            return "Wiki database not available."
+        try:
+            conn = _sqlite3.connect(self._wiki_db)
+            results: list[str] = []
+            for table in ("buildings", "elements", "foods", "research"):
+                try:
+                    rows = conn.execute(
+                        f"SELECT name, body FROM {table}_fts WHERE {table}_fts MATCH ? LIMIT 2",
+                        (query,)
+                    ).fetchall()
+                    for name, body in rows:
+                        results.append(f"{name}: {body[:300]}")
+                except _sqlite3.OperationalError:
+                    continue
+            conn.close()
+            if not results:
+                return "No results found."
+            return "\n\n".join(results[:3])
+        except Exception as e:
+            logger.warning("Wiki search failed: %s", e)
+            return "Wiki search error."

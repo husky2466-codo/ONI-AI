@@ -1,6 +1,9 @@
 # tests/agent/test_llm_wiki.py
+import os
+import sqlite3
 import pytest
-from src.agent.llm import _format_state, _summarize_tiles
+from unittest.mock import patch, MagicMock
+from src.agent.llm import _format_state, _summarize_tiles, GeminiAgent
 
 
 def _make_state(**overrides):
@@ -53,3 +56,40 @@ def test_format_state_no_tiles_section_when_absent():
     state = _make_state()
     output = _format_state(state)
     assert "Tile window" not in output
+
+
+def _make_wiki_db(tmp_path: str) -> str:
+    """Create a minimal wiki.db for testing."""
+    db_path = os.path.join(tmp_path, "wiki.db")
+    conn = sqlite3.connect(db_path)
+    conn.execute("CREATE TABLE buildings (id TEXT PRIMARY KEY, name TEXT, body TEXT)")
+    conn.execute("CREATE VIRTUAL TABLE buildings_fts USING fts5(name, body, content=buildings, content_rowid=rowid)")
+    conn.execute("INSERT INTO buildings VALUES ('ManualGenerator','Manual Generator','Produces 400W. Needs a duplicant.')")
+    conn.execute("INSERT INTO buildings_fts(rowid,name,body) SELECT rowid,name,body FROM buildings")
+    conn.commit()
+    conn.close()
+    return db_path
+
+
+def test_search_wiki_returns_results(tmp_path):
+    db_path = _make_wiki_db(str(tmp_path))
+    agent = GeminiAgent.__new__(GeminiAgent)
+    agent._wiki_db = db_path
+    result = agent._search_wiki("generator")
+    assert "Manual Generator" in result
+    assert "400W" in result
+
+
+def test_search_wiki_no_db_returns_fallback():
+    agent = GeminiAgent.__new__(GeminiAgent)
+    agent._wiki_db = "/nonexistent/wiki.db"
+    result = agent._search_wiki("anything")
+    assert "not available" in result.lower()
+
+
+def test_search_wiki_no_results(tmp_path):
+    db_path = _make_wiki_db(str(tmp_path))
+    agent = GeminiAgent.__new__(GeminiAgent)
+    agent._wiki_db = db_path
+    result = agent._search_wiki("xyzzy nonexistent query zzz")
+    assert "No results" in result
