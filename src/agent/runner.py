@@ -24,6 +24,7 @@ import asyncio
 import json
 import logging
 import os
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
@@ -233,7 +234,8 @@ async def websocket_endpoint(ws: WebSocket) -> None:
 # Main agent loop
 # ---------------------------------------------------------------------------
 
-_DEDUP_TTL = 5  # suppress identical AI actions for this many ticks
+_DEDUP_TTL = 3  # suppress identical AI actions for this many ticks
+_llm_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="llm")
 
 
 async def run(
@@ -339,11 +341,19 @@ async def run(
                 colony_health = format_colony_health(
                     state.data, tick_reward, episode_reward, obligations
                 )
-                candidate = agent.decide(
-                    state.data,
-                    pending_action=relay.pending_action,
-                    ledger_context=ledger.format_context(),
-                    colony_health=colony_health,
+                # Run the blocking LLM call in a thread so the event loop stays alive.
+                # After it returns, drain any state that buffered while we were waiting
+                # so we act on the freshest snapshot — but use state.data for the prompt
+                # since that's what we reasoned about.
+                loop = asyncio.get_event_loop()
+                candidate = await loop.run_in_executor(
+                    _llm_executor,
+                    lambda: agent.decide(
+                        state.data,
+                        pending_action=relay.pending_action,
+                        ledger_context=ledger.format_context(),
+                        colony_health=colony_health,
+                    ),
                 )
                 # Suppress repeated identical non-no_op AI actions for _DEDUP_TTL ticks
                 if (candidate == last_ai_action
