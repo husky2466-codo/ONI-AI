@@ -772,12 +772,28 @@ function renderPerimeter() {
     });
   }
 }
+var BADGE_CLASS = {
+  'action': 'lb-action', 'ack-ok': 'lb-ack-ok', 'ack-fail': 'lb-ack-fail',
+  'reward': 'lb-reward', 'agent': 'lb-agent', 'error': 'lb-error', 'event': 'lb-event',
+};
+var BADGE_LABEL = {
+  'action': 'action', 'ack-ok': 'ack ✓', 'ack-fail': 'ack ✗',
+  'reward': 'reward', 'agent': 'agent', 'error': 'error', 'event': 'event',
+};
 var _logFilters = { all: true, action: true, ack: true, reward: true, event: true, agent: true, error: true };
 
 function toggleFilter(el) {
   var f = el.getAttribute('data-filter');
   _logFilters[f] = !_logFilters[f];
-  el.classList.toggle('on', _logFilters[f]);
+  if (f === 'all' && _logFilters.all) {
+    // Turning All on: sync all individual filters to on
+    Object.keys(_logFilters).forEach(function(k) { _logFilters[k] = true; });
+    document.querySelectorAll('#log-filters .fpill').forEach(function(pill) {
+      pill.classList.add('on');
+    });
+  } else {
+    el.classList.toggle('on', _logFilters[f]);
+  }
   renderLog();
 }
 
@@ -799,15 +815,6 @@ function renderLog() {
   if (!feed) return;
   var wasAtBottom = feed.scrollHeight - feed.scrollTop - feed.clientHeight < 40;
   feed.textContent = '';
-
-  var BADGE_CLASS = {
-    'action': 'lb-action', 'ack-ok': 'lb-ack-ok', 'ack-fail': 'lb-ack-fail',
-    'reward': 'lb-reward', 'agent': 'lb-agent', 'error': 'lb-error', 'event': 'lb-event',
-  };
-  var BADGE_LABEL = {
-    'action': 'action', 'ack-ok': 'ack ✓', 'ack-fail': 'ack ✗',
-    'reward': 'reward', 'agent': 'agent', 'error': 'error', 'event': 'event',
-  };
 
   var shown = logEntries.filter(function(e) {
     if (_logFilters.all) return true;
