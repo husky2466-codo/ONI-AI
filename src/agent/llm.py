@@ -335,6 +335,9 @@ class GeminiAgent:
                             fn_call = part.function_call
                             break
 
+                if fn_call and fn_call.name == "search_wiki" and wiki_calls >= max_wiki_calls:
+                    logger.warning("Wiki call limit (%d) reached; ignoring further tool calls", max_wiki_calls)
+
                 if fn_call and fn_call.name == "search_wiki" and wiki_calls < max_wiki_calls:
                     query = fn_call.args.get("query", "")
                     logger.info("  -> Gemini wiki call: %r", query)
@@ -408,18 +411,20 @@ class GeminiAgent:
             return "Wiki database not available."
         try:
             conn = _sqlite3.connect(self._wiki_db)
-            results: list[str] = []
-            for table in ("buildings", "elements", "foods", "research"):
-                try:
-                    rows = conn.execute(
-                        f"SELECT name, body FROM {table}_fts WHERE {table}_fts MATCH ? LIMIT 2",
-                        (query,)
-                    ).fetchall()
-                    for name, body in rows:
-                        results.append(f"{name}: {body[:300]}")
-                except _sqlite3.OperationalError:
-                    continue
-            conn.close()
+            try:
+                results: list[str] = []
+                for table in ("buildings", "elements", "foods", "research"):
+                    try:
+                        rows = conn.execute(
+                            f"SELECT name, body FROM {table}_fts WHERE {table}_fts MATCH ? LIMIT 2",
+                            (query,)
+                        ).fetchall()
+                        for name, body in rows:
+                            results.append(f"{name}: {body[:300]}")
+                    except _sqlite3.OperationalError:
+                        continue
+            finally:
+                conn.close()
             if not results:
                 return "No results found."
             return "\n\n".join(results[:3])
