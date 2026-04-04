@@ -30,6 +30,34 @@ namespace ONIBridge
                     case "no_op":
                         BridgeServer.Instance.SendAck(cmd.Action, true);
                         break;
+                    case "set_speed":
+                    {
+                        int speed = cmd.Speed ?? 1;
+                        speed = System.Math.Max(0, System.Math.Min(3, speed));
+                        try
+                        {
+                            if (speed == 0)
+                            {
+                                // Pause
+                                if (SpeedControlScreen.Instance != null)
+                                    SpeedControlScreen.Instance.Pause();
+                            }
+                            else
+                            {
+                                // Speed 1=normal, 2=fast, 3=ultra — matches SpeedControlScreen button indices
+                                if (SpeedControlScreen.Instance != null)
+                                    SpeedControlScreen.Instance.SetSpeed(speed);
+                            }
+                            BridgeServer.Instance.SendAck(cmd.Action, true);
+                            Debug.Log($"[ONIBridge] Speed set to {speed}");
+                        }
+                        catch (System.Exception ex)
+                        {
+                            Debug.LogWarning($"[ONIBridge] set_speed failed: {ex.Message}");
+                            BridgeServer.Instance.SendAck(cmd.Action, false, ex.Message);
+                        }
+                        break;
+                    }
                     default:
                         Debug.LogWarning($"[ONIBridge] Unknown action: {cmd.Action}");
                         BridgeServer.Instance.SendAck(cmd.Action, false, $"Unknown action: {cmd.Action}");
