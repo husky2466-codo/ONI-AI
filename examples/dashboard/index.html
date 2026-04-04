@@ -408,6 +408,20 @@ function renderColony() {
       'window: (' + tiles.x + ',' + tiles.y + ') ' + w + '×' + h;
   }
 }
+// Bars
+function makeBar(label, value, cls) {
+  var pct = Math.min(1, Math.max(0, value || 0)) * 100;
+  var row = document.createElement('div'); row.className = 'bar-row';
+  var lbl = document.createElement('span'); lbl.className = 'bar-label'; lbl.textContent = label;
+  var track = document.createElement('div'); track.className = 'bar-track';
+  var fill = document.createElement('div'); fill.className = 'bar-fill ' + cls;
+  fill.style.width = pct.toFixed(1) + '%';
+  var val = document.createElement('span'); val.className = 'bar-val';
+  val.textContent = (pct).toFixed(0) + '%';
+  track.appendChild(fill); row.appendChild(lbl); row.appendChild(track); row.appendChild(val);
+  return row;
+}
+
 function renderDuplicants() {
   var container = document.getElementById('dupe-list');
   if (!container) return;
@@ -447,22 +461,8 @@ function renderDuplicants() {
     header.appendChild(task);
     card.appendChild(header);
 
-    // Bars
-    function makeBar(label, value, cls) {
-      var pct = Math.min(1, Math.max(0, value || 0)) * 100;
-      var row = document.createElement('div'); row.className = 'bar-row';
-      var lbl = document.createElement('span'); lbl.className = 'bar-label'; lbl.textContent = label;
-      var track = document.createElement('div'); track.className = 'bar-track';
-      var fill = document.createElement('div'); fill.className = 'bar-fill ' + cls;
-      fill.style.width = pct.toFixed(1) + '%';
-      var val = document.createElement('span'); val.className = 'bar-val';
-      val.textContent = (pct).toFixed(0) + '%';
-      track.appendChild(fill); row.appendChild(lbl); row.appendChild(track); row.appendChild(val);
-      return row;
-    }
-
     card.appendChild(makeBar('Stress', d.stress, 'stress'));
-    card.appendChild(makeBar('Health', (d.health || 0) / 100, 'health'));
+    card.appendChild(makeBar('Health', (d.health || 0) / 100, 'health')); // health is 0-100, normalize to 0-1
     card.appendChild(makeBar('Hunger', d.hunger, 'hunger'));
     card.appendChild(makeBar('Bladder', d.bladder, 'bladder'));
     if (d.type_data && d.type_data.type === 'bionic') {
