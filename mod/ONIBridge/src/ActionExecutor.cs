@@ -117,6 +117,8 @@ namespace ONIBridge
                 var go = Util.KInstantiate(prefab, null, "DigPlacer");
                 go.transform.position = Grid.CellToPosCBC(cell, Grid.SceneLayer.Building);
                 go.SetActive(true);
+                // Register in the grid so duplicate dig commands on the same cell are detected.
+                Grid.Objects[cell, (int)ObjectLayer.DigPlacer] = go;
             }
 
             BridgeServer.Instance.SendAck(cmd.Action, true);
@@ -135,7 +137,9 @@ namespace ONIBridge
             var digPlacer = Grid.Objects[cell, (int)ObjectLayer.DigPlacer];
             if (digPlacer != null)
             {
-                UnityEngine.Object.Destroy(digPlacer);
+                // Use KDestroyGameObject so Klei's OnCleanUp hooks fire and the chore
+                // scheduler dequeues the dig errand cleanly. Raw Object.Destroy skips this.
+                Util.KDestroyGameObject(digPlacer);
                 BridgeServer.Instance.SendAck(cmd.Action, true);
             }
             else
