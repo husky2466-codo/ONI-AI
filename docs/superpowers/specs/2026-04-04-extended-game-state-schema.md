@@ -33,6 +33,29 @@ available" and degrades gracefully.
 
 ---
 
+## Update Frequency & Token Cost
+
+The full schema is large. Naively including every field in the Gemini prompt every tick will
+balloon token cost and degrade reasoning quality. Fields must be classified by update frequency:
+
+| Frequency | Fields | Rationale |
+|-----------|--------|-----------|
+| Every tick | `duplicants`, `resources`, `alerts`, `colony`, `tiles`, `perimeter` | Change every tick; agent needs current values to act |
+| On change only | `buildings`, `storage`, `printing_pod`, `research`, `power_networks`, `rooms` | Change rarely; sending every tick wastes tokens |
+
+**Implementation:** `runner.py` maintains a shadow copy of the last-sent slow-update fields.
+Each tick it diffs against the current state. If a slow field changed, it is included in the
+prompt. If unchanged, it is omitted and replaced with a one-line summary:
+`"[storage: unchanged since cycle 8]"` or `"[research: MedicineI in progress, 45/100pts]"`.
+
+The full payload is always written to the episode JSONL log regardless of prompt inclusion.
+This keeps training data complete while keeping prompt tokens manageable.
+
+**Expected prompt size with this approach:** ~800–1200 tokens per tick in normal operation,
+vs. ~3000–5000 if all fields are included every tick.
+
+---
+
 ## P0: Pending Actions (Python-Side — No C# Changes)
 
 See Spatial Perimeter System spec. This is tracked in `runner.py` and injected into the prompt.
