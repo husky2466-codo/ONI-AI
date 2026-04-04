@@ -47,3 +47,6 @@ htmlcov/
 # Build output
 dist/
 out/
+
+# Game DLLs (Oxygen Not Included bridge binaries)
+mod/ONIBridge/lib/*.dll
