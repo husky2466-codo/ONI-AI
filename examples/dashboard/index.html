@@ -163,6 +163,48 @@ body {
 .log-msg.muted { color: #484f58; }
 .fpill { padding: 2px 8px; border-radius: 10px; font-size: 10px; cursor: pointer; border: 1px solid #30363d; background: #21262d; color: #8b949e; }
 .fpill.on { border-color: #58a6ff; color: #58a6ff; background: #1a2332; }
+
+/* ── Config ── */
+.profile-row {
+  display: flex; align-items: center; gap: 8px; padding: 6px 8px;
+  background: #0d1117; border: 1px solid #30363d; border-radius: 4px;
+  cursor: pointer; margin-bottom: 4px;
+}
+.profile-row:hover { border-color: #484f58; }
+.profile-row.selected { border-color: #58a6ff; background: #1a2332; }
+.profile-dot { width: 8px; height: 8px; border-radius: 50%; border: 2px solid #484f58; flex-shrink: 0; }
+.profile-dot.active { border-color: #3fb950; background: #3fb950; }
+.profile-info { flex: 1; display: flex; flex-direction: column; gap: 1px; }
+.profile-name-text { font-size: 12px; color: #c9d1d9; }
+.profile-sub { font-size: 10px; color: #484f58; }
+.profile-active-badge {
+  font-size: 9px; color: #3fb950; background: #1f3a2b;
+  border: 1px solid #2ea043; padding: 1px 5px; border-radius: 2px;
+}
+.cfg-field { display: flex; flex-direction: column; gap: 3px; margin-bottom: 7px; }
+.cfg-field label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #484f58; }
+.cfg-field input, .cfg-field select {
+  background: #0d1117; border: 1px solid #30363d; color: #c9d1d9;
+  padding: 5px 8px; border-radius: 3px; font-family: inherit; font-size: 12px; outline: none;
+}
+.cfg-field input:focus { border-color: #58a6ff; }
+.conn-badge {
+  display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px;
+  border-radius: 10px; font-size: 10px; margin-bottom: 8px;
+}
+.conn-badge.ok { background: #1f3a2b; color: #3fb950; border: 1px solid #2ea043; }
+.conn-badge.err { background: #2d1f1f; color: #f85149; border: 1px solid #f85149; }
+.conn-badge.idle { background: #21262d; color: #8b949e; border: 1px solid #30363d; }
+.cfg-btn {
+  padding: 4px 12px; border-radius: 3px; cursor: pointer;
+  font-family: inherit; font-size: 11px; border: 1px solid;
+}
+.cfg-btn.primary { background: #1a2332; border-color: #58a6ff; color: #58a6ff; }
+.cfg-btn.ok { background: #1f3a2b; border-color: #2ea043; color: #3fb950; }
+.cfg-btn.danger { background: #2d1f1f; border-color: #f85149; color: #f85149; }
+.cfg-btn.neutral { background: #21262d; border-color: #30363d; color: #8b949e; }
+.cfg-note { font-size: 10px; color: #484f58; font-style: italic; margin-top: 4px; }
+.cfg-divider { border-top: 1px solid #21262d; margin: 8px 0; }
 </style>
 </head>
 <body>
@@ -312,7 +354,64 @@ body {
     </div>
   </div>
 </div></div>
-  <div class="tab-body" id="tab-config"><!-- Task 8 --></div>
+  <div class="tab-body" id="tab-config"><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;height:100%;align-content:start">
+  <!-- Left: LLM profiles -->
+  <div class="card">
+    <h3>LLM Backend Profiles</h3>
+    <div id="cfg-profile-list"></div>
+    <button class="cfg-btn neutral" style="margin:6px 0;width:100%" onclick="cfgAddProfile()">+ Add Profile</button>
+    <div class="cfg-divider"></div>
+    <div id="cfg-edit-section" style="display:none">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#58a6ff;margin-bottom:6px" id="cfg-edit-label">Edit Profile</div>
+      <div class="cfg-field"><label>Profile Name</label><input type="text" id="cfg-f-name"></div>
+      <div class="cfg-field"><label>Endpoint URL</label><input type="text" id="cfg-f-url" placeholder="http://host:port/v1"></div>
+      <div class="cfg-field"><label>Model</label><input type="text" id="cfg-f-model" placeholder="org/model-name"></div>
+      <div class="cfg-field"><label>API Key (optional)</label><input type="text" id="cfg-f-key" placeholder="leave blank if not required"></div>
+      <div class="cfg-field">
+        <label>Vision Pipeline</label>
+        <select id="cfg-f-vision">
+          <option value="false">Disabled — text state only</option>
+          <option value="true">Enabled — attach screenshot each tick</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px;align-items:center">
+        <button class="cfg-btn ok" onclick="cfgSetActive()">Set Active</button>
+        <button class="cfg-btn primary" onclick="cfgSaveProfile()">Save</button>
+        <button class="cfg-btn danger" style="margin-left:auto" onclick="cfgDeleteProfile()">Delete</button>
+      </div>
+      <div id="cfg-conn-badge" class="conn-badge idle" style="margin-top:8px">● Not tested</div>
+    </div>
+  </div>
+
+  <!-- Right: connections -->
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <div class="card">
+      <h3>Game Connection (ONIBridge TCP)</h3>
+      <div id="cfg-game-badge" class="conn-badge idle">● Unknown</div>
+      <div class="cfg-field"><label>Host</label><input type="text" id="cfg-game-host" value="10.0.0.10"></div>
+      <div class="cfg-field"><label>Port</label><input type="text" id="cfg-game-port" value="9999"></div>
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <button class="cfg-btn ok" onclick="cfgApplyGame()">Apply</button>
+        <button class="cfg-btn neutral" onclick="cfgTestGame()">Test</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Runner Relay (WebSocket)</h3>
+      <div id="cfg-relay-badge" class="conn-badge idle">● Unknown</div>
+      <div class="cfg-field"><label>Relay Port</label><input type="text" id="cfg-relay-port" value="8182"></div>
+      <p class="cfg-note">Port change takes effect on next runner start.</p>
+    </div>
+    <div class="card">
+      <h3>Runner Process</h3>
+      <div id="cfg-runner-badge" class="conn-badge idle">● Stopped</div>
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <button class="cfg-btn neutral" onclick="cfgRestartRunner()">Restart</button>
+        <button class="cfg-btn danger" onclick="cfgStopRunner()">Stop</button>
+      </div>
+      <p class="cfg-note">Restart picks up all config changes immediately.</p>
+    </div>
+  </div>
+</div></div>
 </div>
 
 <!-- Colony Health strip -->
@@ -837,8 +936,165 @@ function renderLog() {
 
   if (wasAtBottom) feed.scrollTop = feed.scrollHeight;
 }
-function renderConfig() {}
-function loadConfig() {}
+var _cfgProfiles = [];
+var _cfgActiveId = null;
+var _cfgSelectedId = null;
+
+function loadConfig() {
+  fetch('/config/profiles').then(function(r) { return r.json(); }).then(function(data) {
+    _cfgProfiles = data.profiles || [];
+    _cfgActiveId = data.active_id;
+    renderProfileList();
+    if (_cfgProfiles.length > 0) selectProfile(_cfgProfiles[0].id);
+  });
+  fetch('/config/game').then(function(r) { return r.json(); }).then(function(data) {
+    if (document.getElementById('cfg-game-host')) {
+      document.getElementById('cfg-game-host').value = data.host || '';
+      document.getElementById('cfg-game-port').value = data.port || '';
+    }
+  });
+  fetch('/runner/status').then(function(r) { return r.json(); }).then(function(data) {
+    updateRunnerBadge(data);
+  });
+}
+
+function renderConfig() {
+  var badge = document.getElementById('cfg-runner-badge');
+  if (!badge) return;
+  fetch('/runner/status').then(function(r) { return r.json(); }).then(function(data) {
+    updateRunnerBadge(data);
+  });
+}
+
+function updateRunnerBadge(data) {
+  var badge = document.getElementById('cfg-runner-badge');
+  if (!badge) return;
+  if (data.running) {
+    var uptime = data.uptime_seconds != null ? ' · uptime ' + fmtUptime(data.uptime_seconds) : '';
+    badge.className = 'conn-badge ok';
+    badge.textContent = '● Running — pid ' + data.pid + uptime;
+  } else {
+    badge.className = 'conn-badge idle';
+    badge.textContent = '● Stopped';
+  }
+}
+
+function fmtUptime(sec) {
+  var h = Math.floor(sec / 3600); var m = Math.floor((sec % 3600) / 60); var s = sec % 60;
+  return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+}
+
+function renderProfileList() {
+  var list = document.getElementById('cfg-profile-list');
+  if (!list) return;
+  list.textContent = '';
+  _cfgProfiles.forEach(function(p) {
+    var row = document.createElement('div');
+    row.className = 'profile-row' + (_cfgSelectedId === p.id ? ' selected' : '');
+    row.setAttribute('data-id', p.id);
+
+    var dot = document.createElement('span');
+    dot.className = 'profile-dot' + (p.id === _cfgActiveId ? ' active' : '');
+
+    var info = document.createElement('div'); info.className = 'profile-info';
+    var nm = document.createElement('span'); nm.className = 'profile-name-text'; nm.textContent = p.name;
+    var sub = document.createElement('span'); sub.className = 'profile-sub';
+    sub.textContent = (p.endpoint_url || '').replace('http://', '').replace('https://', '').split('/')[0] + ' · ' + (p.model || '');
+    info.appendChild(nm); info.appendChild(sub);
+
+    row.appendChild(dot); row.appendChild(info);
+    if (p.id === _cfgActiveId) {
+      var badge = document.createElement('span'); badge.className = 'profile-active-badge'; badge.textContent = 'Active';
+      row.appendChild(badge);
+    }
+    row.addEventListener('click', function() { selectProfile(p.id); });
+    list.appendChild(row);
+  });
+}
+
+function selectProfile(id) {
+  _cfgSelectedId = id;
+  var p = _cfgProfiles.find(function(x) { return x.id === id; });
+  if (!p) return;
+  renderProfileList();
+  document.getElementById('cfg-edit-section').style.display = 'block';
+  document.getElementById('cfg-edit-label').textContent = 'Edit: ' + p.name;
+  document.getElementById('cfg-f-name').value = p.name || '';
+  document.getElementById('cfg-f-url').value = p.endpoint_url || '';
+  document.getElementById('cfg-f-model').value = p.model || '';
+  document.getElementById('cfg-f-key').value = p.api_key || '';
+  document.getElementById('cfg-f-vision').value = p.vision_enabled ? 'true' : 'false';
+}
+
+function cfgSaveProfile() {
+  if (!_cfgSelectedId) return;
+  var updates = {
+    name: document.getElementById('cfg-f-name').value,
+    endpoint_url: document.getElementById('cfg-f-url').value,
+    model: document.getElementById('cfg-f-model').value,
+    api_key: document.getElementById('cfg-f-key').value,
+    vision_enabled: document.getElementById('cfg-f-vision').value === 'true',
+  };
+  fetch('/config/profiles/' + _cfgSelectedId, {
+    method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(updates)
+  }).then(function() { loadConfig(); });
+}
+
+function cfgSetActive() {
+  if (!_cfgSelectedId) return;
+  fetch('/config/profiles/' + _cfgSelectedId + '/activate', { method: 'POST' })
+    .then(function() { loadConfig(); });
+}
+
+function cfgDeleteProfile() {
+  if (!_cfgSelectedId) return;
+  if (!confirm('Delete this profile?')) return;
+  fetch('/config/profiles/' + _cfgSelectedId, { method: 'DELETE' })
+    .then(function(r) {
+      if (r.ok) { _cfgSelectedId = null; document.getElementById('cfg-edit-section').style.display = 'none'; loadConfig(); }
+      else { r.json().then(function(d) { alert(d.error || 'Cannot delete'); }); }
+    });
+}
+
+function cfgAddProfile() {
+  fetch('/config/profiles', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ name: 'New Profile', endpoint_url: '', model: '', api_key: '', vision_enabled: false })
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    loadConfig();
+    setTimeout(function() { selectProfile(d.id); }, 200);
+  });
+}
+
+function cfgApplyGame() {
+  var host = document.getElementById('cfg-game-host').value;
+  var port = parseInt(document.getElementById('cfg-game-port').value, 10);
+  fetch('/config/game', {
+    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ host: host, port: port })
+  }).then(function() {
+    var badge = document.getElementById('cfg-game-badge');
+    badge.className = 'conn-badge ok'; badge.textContent = '● Applied';
+  });
+}
+
+function cfgTestGame() {
+  var badge = document.getElementById('cfg-game-badge');
+  badge.className = 'conn-badge idle'; badge.textContent = '● Testing...';
+  fetch('/runner/status').then(function(r) { return r.json(); }).then(function(d) {
+    badge.className = d.running ? 'conn-badge ok' : 'conn-badge idle';
+    badge.textContent = d.running ? '● Runner connected' : '● Runner not running';
+  });
+}
+
+function cfgRestartRunner() {
+  fetch('/runner/stop', { method: 'POST' }).then(function() {
+    return fetch('/runner/start', { method: 'POST' });
+  }).then(function() { renderConfig(); });
+}
+
+function cfgStopRunner() {
+  fetch('/runner/stop', { method: 'POST' }).then(function() { renderConfig(); });
+}
 function renderHealthStrip() {
   var r = rewardData;
   if (r.tick != null) {
