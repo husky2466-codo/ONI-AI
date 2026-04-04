@@ -25,6 +25,9 @@ namespace ONIBridge
 
                 if (!server.IsConnected) continue;
 
+                // Skip if the game world isn't loaded yet
+                if (GameClock.Instance == null || ClusterManager.Instance == null) continue;
+
                 try
                 {
                     var state = StateSerializer.Serialize();
