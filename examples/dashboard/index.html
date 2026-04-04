@@ -477,6 +477,16 @@ function connect() {
 function handleMessage(msg) {
   if (msg.type === 'state') {
     state = msg.data || {};
+    // Extract reward and obligation data for health strip
+    var r = state.reward || {};
+    rewardData.tick = r.tick != null ? r.tick : null;
+    rewardData.episode = r.episode != null ? r.episode : 0;
+    var alive = (state.duplicants || []).filter(function(d) { return d.health > 0; }).length;
+    var total = (state.duplicants || []).length;
+    rewardData.survival = total > 0 ? alive + '/' + total : null;
+    rewardData.obligations = r.open_events ? r.open_events.map(function(e) {
+      return (e.type || e) + (e.detail ? ': ' + e.detail : '');
+    }) : [];
     lastStateTime = Date.now();
     sessionStats.ticks++;
     renderAll();
