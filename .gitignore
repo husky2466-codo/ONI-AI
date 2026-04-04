@@ -48,5 +48,7 @@ htmlcov/
 dist/
 out/
 
-# Game DLLs (Oxygen Not Included bridge binaries)
+# Game DLLs (Oxygen Not Included bridge binaries — non-redistributable)
 mod/ONIBridge/lib/*.dll
+mod/ONIBridge/lib/*.pdb
+mod/ONIBridge/lib/*.xml
