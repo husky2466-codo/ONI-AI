@@ -28,43 +28,154 @@ namespace ONIBridge
                         SetPriority(cmd);
                         break;
                     case "no_op":
+                        BridgeServer.Instance.SendAck(cmd.Action, true);
                         break;
                     default:
                         Debug.LogWarning($"[ONIBridge] Unknown action: {cmd.Action}");
+                        BridgeServer.Instance.SendAck(cmd.Action, false, $"Unknown action: {cmd.Action}");
                         break;
                 }
             }
             catch (System.Exception ex)
             {
                 Debug.LogError($"[ONIBridge] ActionExecutor failed ({cmd.Action}): {ex.Message}");
+                BridgeServer.Instance.SendAck(cmd.Action, false, ex.Message);
             }
         }
 
         private static void PlaceBuilding(ActionCommand cmd)
         {
-            // TODO: Implement using BuildingDef.TryPlace() or PlayerController
-            // BuildingDef def = Assets.GetBuildingDef(cmd.BuildingId);
-            // int cell = Grid.XYToCell(cmd.CellX, cmd.CellY);
-            // def.TryPlace(null, cell, Orientation.Neutral, ...);
-            Debug.Log($"[ONIBridge] PlaceBuilding: {cmd.BuildingId} at ({cmd.CellX},{cmd.CellY}) — stub");
+            if (string.IsNullOrEmpty(cmd.BuildingId))
+            {
+                BridgeServer.Instance.SendAck(cmd.Action, false, "building_id is required");
+                return;
+            }
+
+            var def = Assets.GetBuildingDef(cmd.BuildingId);
+            if (def == null)
+            {
+                BridgeServer.Instance.SendAck(cmd.Action, false, $"Unknown building: {cmd.BuildingId}");
+                return;
+            }
+
+            int cell = Grid.XYToCell(cmd.CellX, cmd.CellY);
+            if (!Grid.IsValidCell(cell))
+            {
+                BridgeServer.Instance.SendAck(cmd.Action, false, $"Invalid cell ({cmd.CellX},{cmd.CellY})");
+                return;
+            }
+
+            string reason;
+            if (!def.IsValidPlaceLocation(null, cell, Orientation.Neutral, out reason))
+            {
+                BridgeServer.Instance.SendAck(cmd.Action, false, $"Cannot place: {reason}");
+                return;
+            }
+
+            // DefaultElements() returns Tag[] with the default construction materials.
+            // TryPlace takes a world-space Vector3 position, not a cell int.
+            var selectedElements = def.DefaultElements();
+            def.TryPlace(
+                null,
+                Grid.CellToPosCBC(cell, Grid.SceneLayer.Building),
+                Orientation.Neutral,
+                selectedElements,
+                0
+            );
+            BridgeServer.Instance.SendAck(cmd.Action, true);
+            Debug.Log($"[ONIBridge] Placed {cmd.BuildingId} at ({cmd.CellX},{cmd.CellY})");
         }
 
         private static void Dig(ActionCommand cmd)
         {
-            // TODO: Implement using DigTool or Chore system
-            // int cell = Grid.XYToCell(cmd.CellX, cmd.CellY);
-            // Game.Instance.userMenu... or direct chore creation
-            Debug.Log($"[ONIBridge] Dig at ({cmd.CellX},{cmd.CellY}) — stub");
+            int cell = Grid.XYToCell(cmd.CellX, cmd.CellY);
+            if (!Grid.IsValidCell(cell))
+            {
+                BridgeServer.Instance.SendAck(cmd.Action, false, $"Invalid cell ({cmd.CellX},{cmd.CellY})");
+                return;
+            }
+
+            if (!Grid.IsSolidCell(cell))
+            {
+                BridgeServer.Instance.SendAck(cmd.Action, false, "Cell is not solid — nothing to dig");
+                return;
+            }
+
+            var digPlacer = Grid.Objects[cell, (int)ObjectLayer.DigPlacer];
+            if (digPlacer == null)
+            {
+                // TryGetPrefab(Tag) returns GameObject directly (single-arg overload).
+                // Util.KInstantiate(GameObject, GameObject parent, string name) is the
+                // Klei utility that clones with name; position is set afterwards.
+                var prefab = Assets.TryGetPrefab(new Tag("DigPlacer"));
+                if (prefab == null)
+                {
+                    BridgeServer.Instance.SendAck(cmd.Action, false, "DigPlacer prefab not found");
+                    return;
+                }
+
+                var go = Util.KInstantiate(prefab, null, "DigPlacer");
+                go.transform.position = Grid.CellToPosCBC(cell, Grid.SceneLayer.Building);
+                go.SetActive(true);
+            }
+
+            BridgeServer.Instance.SendAck(cmd.Action, true);
+            Debug.Log($"[ONIBridge] Dig queued at ({cmd.CellX},{cmd.CellY})");
         }
 
         private static void CancelDig(ActionCommand cmd)
         {
-            Debug.Log($"[ONIBridge] CancelDig at ({cmd.CellX},{cmd.CellY}) — stub");
+            int cell = Grid.XYToCell(cmd.CellX, cmd.CellY);
+            if (!Grid.IsValidCell(cell))
+            {
+                BridgeServer.Instance.SendAck(cmd.Action, false, $"Invalid cell ({cmd.CellX},{cmd.CellY})");
+                return;
+            }
+
+            var digPlacer = Grid.Objects[cell, (int)ObjectLayer.DigPlacer];
+            if (digPlacer != null)
+            {
+                UnityEngine.Object.Destroy(digPlacer);
+                BridgeServer.Instance.SendAck(cmd.Action, true);
+            }
+            else
+            {
+                BridgeServer.Instance.SendAck(cmd.Action, false, "No dig order at cell");
+            }
         }
 
         private static void SetPriority(ActionCommand cmd)
         {
-            Debug.Log($"[ONIBridge] SetPriority at ({cmd.CellX},{cmd.CellY}) p={cmd.Priority} — stub");
+            int cell = Grid.XYToCell(cmd.CellX, cmd.CellY);
+            if (!Grid.IsValidCell(cell))
+            {
+                BridgeServer.Instance.SendAck(cmd.Action, false, $"Invalid cell ({cmd.CellX},{cmd.CellY})");
+                return;
+            }
+
+            // Clamp to valid ONI priority range 1–9 (System.Math.Clamp not in net471)
+            int priority = System.Math.Max(1, System.Math.Min(9, cmd.Priority));
+
+            // Check Building layer first, then DigPlacer (cancel-dig orders are also prioritizable)
+            var go = Grid.Objects[cell, (int)ObjectLayer.Building]
+                  ?? Grid.Objects[cell, (int)ObjectLayer.DigPlacer];
+
+            if (go == null)
+            {
+                BridgeServer.Instance.SendAck(cmd.Action, false, "No prioritizable object at cell");
+                return;
+            }
+
+            var prioritizable = go.GetComponent<Prioritizable>();
+            if (prioritizable == null)
+            {
+                BridgeServer.Instance.SendAck(cmd.Action, false, "Object is not prioritizable");
+                return;
+            }
+
+            prioritizable.SetMasterPriority(new PrioritySetting(PriorityScreen.PriorityClass.basic, priority));
+            BridgeServer.Instance.SendAck(cmd.Action, true);
+            Debug.Log($"[ONIBridge] Priority set to {priority} at ({cmd.CellX},{cmd.CellY})");
         }
     }
 }
