@@ -72,6 +72,4 @@ data/*.db
 # Episode training logs (generated at runtime, can be large)
 data/episodes/
 
-# Seed knowledge files (created from human playthroughs)
-data/seeds/
 examples/dashboard/llm_profiles.json
