@@ -35,6 +35,7 @@ from src.agent.client import BridgeClient
 from src.agent.llm import GeminiAgent
 from src.agent.perimeter import SpatialLedger
 from src.agent.protocol import build_abandon_perimeter, build_no_op
+from src.agent.reload import CANONICAL_SAVE, EpisodeReloader
 from src.agent.reward import RewardCalculator, format_colony_health
 
 logging.basicConfig(
@@ -235,7 +236,13 @@ async def websocket_endpoint(ws: WebSocket) -> None:
 _DEDUP_TTL = 5  # suppress identical AI actions for this many ticks
 
 
-async def run(host: str, port: int, api_key: str, episode_log: Path | None) -> None:
+async def run(
+    host: str,
+    port: int,
+    api_key: str,
+    episode_log: Path | None,
+    reloader: EpisodeReloader | None = None,
+) -> None:
     client = BridgeClient(host=host, port=port)
     agent = GeminiAgent(api_key=api_key)
     ledger = SpatialLedger()
@@ -419,6 +426,15 @@ async def run(host: str, port: int, api_key: str, episode_log: Path | None) -> N
                 f.write(json.dumps(entry) + "\n")
         logger.info("Episode log saved to %s (%d ticks)", episode_log, len(log_entries))
 
+    if reloader is not None:
+        logger.info("Auto-reload enabled — resetting episode...")
+        result = await reloader.reset_episode()
+        if result.success:
+            logger.info("Episode reset in %.1fs — reconnecting", result.elapsed_s)
+        else:
+            logger.error("Episode reset failed: %s — stopping", result.error)
+            return
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="ONI Gemini agent runner + WebSocket relay")
@@ -430,6 +446,8 @@ def main() -> None:
                         help="Google API key (or set GOOGLE_API_KEY env var)")
     parser.add_argument("--log-episode", default=None,
                         help="Path to write episode JSONL log, or 'auto' for data/episodes/ auto-naming")
+    parser.add_argument("--save", default=CANONICAL_SAVE, help="Save path for episode resets")
+    parser.add_argument("--auto-reload", action="store_true", help="Enable automatic episode reloading")
     args = parser.parse_args()
 
     if not args.api_key:
@@ -442,6 +460,10 @@ def main() -> None:
     global _game_host
     _game_host = args.host
 
+    reloader: EpisodeReloader | None = (
+        EpisodeReloader(save_path=args.save) if args.auto_reload else None
+    )
+
     async def _run_all() -> None:
         # Start the uvicorn relay server as a background task
         config = uvicorn.Config(app, host="0.0.0.0", port=args.relay_port,
@@ -449,7 +471,7 @@ def main() -> None:
         server = uvicorn.Server(config)
         relay_task = asyncio.create_task(server.serve())
         agent_task = asyncio.create_task(
-            run(args.host, args.port, args.api_key, episode_log)
+            run(args.host, args.port, args.api_key, episode_log, reloader)
         )
         # Run both; if agent loop exits, cancel the relay
         done, pending = await asyncio.wait(
