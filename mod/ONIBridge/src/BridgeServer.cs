@@ -118,8 +118,16 @@ namespace ONIBridge
                 {
                     var client = _listener.AcceptTcpClient();
                     Debug.Log("[ONIBridge] AI agent connected.");
+                    // Close stale previous connection, then swap in the new one.
+                    var previous = _connectedClient;
                     _connectedClient = client;
-                    HandleClient(client);
+                    previous?.Close();
+                    var t = new Thread(() => HandleClient(client))
+                    {
+                        IsBackground = true,
+                        Name = "ONIBridge-Client"
+                    };
+                    t.Start();
                 }
                 catch (SocketException) when (!_running)
                 {

@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ONI Bridge Dashboard</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #1a1a2e; color: #e0e0e0; font-family: 'Courier New', monospace; font-size: 13px; padding: 16px; padding-bottom: 80px; }
+  h1 { color: #00d4ff; font-size: 18px; margin-bottom: 12px; }
+  h2 { color: #7fdbff; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .card { background: #16213e; border: 1px solid #0f3460; border-radius: 6px; padding: 12px; }
+
+  .status-bar { display: flex; gap: 16px; align-items: center; margin-bottom: 12px; padding: 8px 12px; background: #16213e; border-radius: 6px; border: 1px solid #0f3460; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #ff4444; flex-shrink: 0; }
+  .dot.connected { background: #44ff88; }
+
+  .kv { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid #0f3460; }
+  .kv:last-child { border-bottom: none; }
+  .kv .label { color: #7fdbff; }
+  .kv .value { color: #fff; font-weight: bold; }
+
+  .dup-row { padding: 6px 0; border-bottom: 1px solid #0f3460; }
+  .dup-row:last-child { border-bottom: none; }
+  .dup-name { color: #ffd700; font-weight: bold; }
+  .dup-detail { color: #aaa; margin-top: 2px; }
+
+  .bld-row { padding: 3px 0; }
+  .bld-type { color: #00d4ff; }
+  .bld-offline { color: #ff6b6b; }
+  .alert-row { color: #ff6b6b; padding: 3px 0; }
+
+  input[type=number], input[type=text] {
+    background: #0f3460; border: 1px solid #00d4ff; color: #fff;
+    padding: 4px 8px; border-radius: 4px; width: 70px; font-family: inherit; font-size: 13px;
+  }
+  button {
+    background: #0f3460; border: 1px solid #00d4ff; color: #00d4ff;
+    padding: 5px 14px; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 13px;
+  }
+  button:hover { background: #1a4a80; }
+  button.danger { border-color: #ff6b6b; color: #ff6b6b; }
+  button.danger:hover { background: #4a1a1a; }
+
+  #log { height: 180px; overflow-y: auto; }
+  .log-entry { padding: 2px 0; border-bottom: 1px solid #0a1628; color: #aaa; }
+  .log-ok { color: #44ff88; }
+  .log-fail { color: #ff6b6b; }
+  .log-info { color: #7fdbff; }
+
+  .cycle-big { font-size: 28px; color: #00d4ff; font-weight: bold; }
+  .muted { color: #555; }
+
+  /* --- Toolbar --- */
+  #toolbar {
+    position: fixed; bottom: 0; left: 0; right: 0; height: 56px;
+    background: #0d1b2a; border-top: 2px solid #0f3460;
+    display: flex; align-items: center; padding: 0 8px; gap: 4px;
+    z-index: 100; overflow-x: auto;
+  }
+  .tb-btn {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-width: 52px; height: 44px; background: #16213e; border: 1px solid #0f3460;
+    border-radius: 4px; cursor: pointer; padding: 0 6px; gap: 2px; flex-shrink: 0;
+    transition: background 0.1s, border-color 0.1s; color: #e0e0e0;
+    font-family: 'Courier New', monospace; font-size: 11px;
+  }
+  .tb-btn:hover { background: #1e3a5f; border-color: #00d4ff; }
+  .tb-btn.active { background: #1e3a5f; border-color: #00d4ff; color: #00d4ff; }
+  .tb-btn .tb-icon { font-size: 18px; line-height: 1; }
+  .tb-btn .tb-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: #7fdbff; }
+  .tb-sep { width: 1px; height: 36px; background: #0f3460; flex-shrink: 0; margin: 0 4px; }
+  .tb-action {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-width: 44px; height: 44px; background: #16213e; border: 1px solid #0f3460;
+    border-radius: 4px; cursor: pointer; padding: 0 4px; gap: 2px; flex-shrink: 0;
+    transition: background 0.1s; color: #e0e0e0;
+    font-family: 'Courier New', monospace; font-size: 11px;
+  }
+  .tb-action:hover { background: #2a1e3f; border-color: #a78bfa; }
+  .tb-action .tb-icon { font-size: 16px; line-height: 1; }
+  .tb-action .tb-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: #a78bfa; }
+  .tb-action.danger:hover { background: #3a1a1a; border-color: #ff6b6b; }
+  .tb-action.danger .tb-label { color: #ff6b6b; }
+
+  /* --- Drawer --- */
+  #drawer {
+    position: fixed; bottom: 56px; left: 8px; width: 280px;
+    max-height: calc(100vh - 80px); background: #16213e;
+    border: 1px solid #00d4ff; border-radius: 6px 6px 0 0;
+    z-index: 99; display: none; flex-direction: column; overflow: hidden;
+  }
+  #drawer.open { display: flex; }
+  #drawer-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 12px; background: #0f3460; border-bottom: 1px solid #00d4ff; flex-shrink: 0;
+  }
+  #drawer-title { color: #00d4ff; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; font-weight: bold; }
+  #drawer-close { background: none; border: none; color: #7fdbff; cursor: pointer; font-size: 16px; padding: 0; line-height: 1; }
+  #drawer-coords {
+    padding: 8px 12px; background: #0d1b2a; border-bottom: 1px solid #0f3460;
+    display: flex; gap: 8px; align-items: center; flex-shrink: 0; font-size: 12px;
+  }
+  #drawer-coords label { color: #7fdbff; }
+  #drawer-coords input { width: 60px; }
+  #drawer-list { overflow-y: auto; flex: 1; }
+
+  .drawer-section-header {
+    padding: 6px 12px 4px; color: #ffd700; font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.5px; background: #0d1b2a;
+    border-bottom: 1px solid #0f3460; position: sticky; top: 0;
+  }
+  .drawer-item {
+    display: flex; align-items: center; gap: 8px; padding: 7px 12px;
+    border-bottom: 1px solid #0a1628; cursor: default; transition: background 0.1s;
+  }
+  .drawer-item:hover { background: #1e3a5f; }
+  .drawer-item .item-icon { font-size: 16px; flex-shrink: 0; }
+  .drawer-item .item-info { flex: 1; }
+  .drawer-item .item-name { color: #e0e0e0; }
+  .drawer-item .item-id { color: #555; font-size: 10px; }
+  .drawer-item .item-place-btn {
+    background: #0f3460; border: 1px solid #00d4ff; color: #00d4ff;
+    padding: 3px 8px; border-radius: 3px; cursor: pointer;
+    font-family: inherit; font-size: 11px; flex-shrink: 0;
+  }
+  .drawer-item .item-place-btn:hover { background: #1a4a80; }
+  .drawer-action-row {
+    display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+    border-bottom: 1px solid #0a1628;
+  }
+  .drawer-action-row .item-icon { font-size: 20px; }
+  .drawer-action-row .item-label { flex: 1; color: #e0e0e0; }
+  .drawer-pri-row { display: flex; align-items: center; gap: 8px; padding: 10px 12px; }
+  .drawer-pri-row label { color: #7fdbff; }
+  .drawer-pri-row input { width: 50px; }
+</style>
+</head>
+<body>
+
+<h1>ONI Bridge Dashboard</h1>
+
+<div class="status-bar">
+  <div class="dot" id="dot"></div>
+  <span id="status-text">Connecting...</span>
+  <span style="margin-left:auto;color:#555" id="last-update"></span>
+</div>
+
+<div class="grid3">
+  <div class="card">
+    <h2>Game</h2>
+    <div class="cycle-big" id="cycle">—</div>
+    <div style="color:#aaa;margin-top:4px">cycle</div>
+    <div style="margin-top:8px">
+      <div class="kv"><span class="label">Time</span><span class="value" id="time">—</span></div>
+      <div class="kv"><span class="label">Duplicants</span><span class="value" id="dup-count">—</span></div>
+      <div class="kv"><span class="label">Buildings</span><span class="value" id="bld-count">—</span></div>
+      <div class="kv"><span class="label">Alerts</span><span class="value" id="alert-count">—</span></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Resources</h2>
+    <div class="kv"><span class="label">Oxygen</span><span class="value" id="oxygen">—</span></div>
+    <div class="kv"><span class="label">Water</span><span class="value" id="water">—</span></div>
+    <div class="kv"><span class="label">Food</span><span class="value" id="food">—</span></div>
+    <div class="kv"><span class="label">Power</span><span class="value" id="power">—</span></div>
+    <div class="kv"><span class="label">CO2</span><span class="value" id="co2">—</span></div>
+  </div>
+  <div class="card">
+    <h2>Alerts</h2>
+    <div id="alerts"><span class="muted">None</span></div>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="card">
+    <h2>Duplicants</h2>
+    <div id="duplicants"><span class="muted">No data</span></div>
+  </div>
+  <div class="card">
+    <h2>Buildings (first 10)</h2>
+    <div id="buildings"><span class="muted">No data</span></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Log</h2>
+  <div id="log"></div>
+</div>
+
+<!-- Drawer -->
+<div id="drawer">
+  <div id="drawer-header">
+    <span id="drawer-title">Buildings</span>
+    <button id="drawer-close" onclick="closeDrawer()">&#x2715;</button>
+  </div>
+  <div id="drawer-coords">
+    <label>X</label><input type="number" id="d-x" value="122">
+    <label>Y</label><input type="number" id="d-y" value="210">
+  </div>
+  <div id="drawer-list"></div>
+</div>
+
+<!-- Toolbar -->
+<div id="toolbar">
+  <button class="tb-btn" data-drawer="base"        title="Base">        <span class="tb-icon">🏗️</span><span class="tb-label">Base</span></button>
+  <button class="tb-btn" data-drawer="oxygen"      title="Oxygen">      <span class="tb-icon">💨</span><span class="tb-label">Oxygen</span></button>
+  <button class="tb-btn" data-drawer="power"       title="Power">       <span class="tb-icon">⚡</span><span class="tb-label">Power</span></button>
+  <button class="tb-btn" data-drawer="food"        title="Food">        <span class="tb-icon">🍖</span><span class="tb-label">Food</span></button>
+  <button class="tb-btn" data-drawer="plumbing"    title="Plumbing">    <span class="tb-icon">🚰</span><span class="tb-label">Plumbing</span></button>
+  <button class="tb-btn" data-drawer="ventilation" title="Ventilation"> <span class="tb-icon">🌀</span><span class="tb-label">Vent</span></button>
+  <button class="tb-btn" data-drawer="medicine"    title="Medicine">    <span class="tb-icon">💊</span><span class="tb-label">Med</span></button>
+  <button class="tb-btn" data-drawer="furniture"   title="Furniture">   <span class="tb-icon">🛏️</span><span class="tb-label">Furn</span></button>
+  <button class="tb-btn" data-drawer="stations"    title="Stations">    <span class="tb-icon">🔬</span><span class="tb-label">Station</span></button>
+  <button class="tb-btn" data-drawer="utilities"   title="Utilities">   <span class="tb-icon">🔧</span><span class="tb-label">Utils</span></button>
+  <button class="tb-btn" data-drawer="automation"  title="Automation">  <span class="tb-icon">🤖</span><span class="tb-label">Auto</span></button>
+  <div class="tb-sep"></div>
+  <button class="tb-action"        data-drawer="dig"      title="Dig">      <span class="tb-icon">⛏️</span><span class="tb-label">Dig</span></button>
+  <button class="tb-action danger" data-drawer="cancel"   title="Cancel">   <span class="tb-icon">✖️</span><span class="tb-label">Cancel</span></button>
+  <button class="tb-action"        data-drawer="priority" title="Priority">  <span class="tb-icon">📌</span><span class="tb-label">Priority</span></button>
+  <button class="tb-action"        id="btn-noop"          title="No-op">    <span class="tb-icon">⏸️</span><span class="tb-label">No-op</span></button>
+</div>
+
+<script>
+// -----------------------------------------------------------------------
+// Building catalog
+// -----------------------------------------------------------------------
+var BUILDINGS = {
+  base: { label: 'Base', sections: [
+    { name: 'Tiles', items: [
+      { id: 'Tile',                  name: 'Tile',                icon: '⬜' },
+      { id: 'GasPermeableMembrane',  name: 'Mesh Tile',           icon: '⬜' },
+      { id: 'InsulatedTile',         name: 'Insulated Tile',      icon: '⬜' },
+      { id: 'BunkerTile',            name: 'Bunker Tile',         icon: '⬛' },
+      { id: 'MetalTile',             name: 'Metal Tile',          icon: '🔷' },
+      { id: 'PlasticTile',           name: 'Plastic Tile',        icon: '🔹' },
+    ]},
+    { name: 'Ladders & Tubes', items: [
+      { id: 'Ladder',                name: 'Ladder',              icon: '🪜' },
+      { id: 'LadderFast',            name: 'Plastic Ladder',      icon: '🪜' },
+      { id: 'FirePole',              name: "Fireman's Pole",      icon: '🪜' },
+      { id: 'Tube',                  name: 'Transit Tube',        icon: '⭕' },
+      { id: 'TubeEntrance',          name: 'Tube Entrance',       icon: '⭕' },
+      { id: 'TubeExit',              name: 'Tube Exit',           icon: '⭕' },
+    ]},
+    { name: 'Doors', items: [
+      { id: 'Door',                  name: 'Manual Airlock',      icon: '🚪' },
+      { id: 'PneumaticDoor',         name: 'Pneumatic Door',      icon: '🚪' },
+      { id: 'QuantumLockDoor',       name: 'Blast Door',          icon: '🚪' },
+      { id: 'StorageTile',           name: 'Storage Tile',        icon: '📦' },
+    ]},
+  ]},
+  oxygen: { label: 'Oxygen', sections: [
+    { name: 'Production', items: [
+      { id: 'OxygenDiffuser',        name: 'Oxygen Diffuser',     icon: '💨' },
+      { id: 'Electrolyzer',          name: 'Electrolyzer',        icon: '⚗️' },
+      { id: 'RustDeoxidizer',        name: 'Rust Deoxidizer',     icon: '🦠' },
+      { id: 'MOOP',                  name: 'Oxylite Refinery',    icon: '💨' },
+    ]},
+    { name: 'Filtering', items: [
+      { id: 'CO2Scrubber',           name: 'Carbon Skimmer',      icon: '🌿' },
+      { id: 'AirFilter',             name: 'Air Deodorizer',      icon: '🌀' },
+    ]},
+  ]},
+  power: { label: 'Power', sections: [
+    { name: 'Generators', items: [
+      { id: 'ManualGenerator',       name: 'Manual Generator',    icon: '⚡' },
+      { id: 'Generator',             name: 'Coal Generator',      icon: '⚡' },
+      { id: 'WoodGasGenerator',      name: 'Wood Burner',         icon: '🔥' },
+      { id: 'HydrogenGenerator',     name: 'Hydrogen Generator',  icon: '⚡' },
+      { id: 'MethaneGenerator',      name: 'Natural Gas Gen.',    icon: '⚡' },
+      { id: 'SteamTurbine2',         name: 'Steam Turbine',       icon: '🌪️' },
+      { id: 'SolarPanel',            name: 'Solar Panel',         icon: '☀️' },
+      { id: 'NuclearReactor',        name: 'Nuclear Reactor',     icon: '☢️' },
+    ]},
+    { name: 'Storage', items: [
+      { id: 'Battery',               name: 'Battery',             icon: '🔋' },
+      { id: 'BatteryMedium',         name: 'Large Battery',       icon: '🔋' },
+      { id: 'BatterySmart',          name: 'Smart Battery',       icon: '🔋' },
+      { id: 'PowerTransformer',      name: 'Power Transformer',   icon: '🔌' },
+      { id: 'PowerTransformerSmall', name: 'Sm. Transformer',     icon: '🔌' },
+    ]},
+    { name: 'Wiring', items: [
+      { id: 'Wire',                  name: 'Wire',                icon: '〰️' },
+      { id: 'WireRefined',           name: 'Conductive Wire',     icon: '〰️' },
+      { id: 'WireBridge',            name: 'Wire Bridge',         icon: '〰️' },
+      { id: 'WireRefinedBridge',     name: 'Conductive Bridge',   icon: '〰️' },
+      { id: 'Switch',                name: 'Switch',              icon: '🔘' },
+    ]},
+  ]},
+  food: { label: 'Food', sections: [
+    { name: 'Cooking', items: [
+      { id: 'MicrobeMusher',         name: 'Microbe Musher',      icon: '🍲' },
+      { id: 'CookingStation',        name: 'Electric Grill',      icon: '🍳' },
+      { id: 'GourmetCookingStation', name: 'Gas Range',           icon: '🍳' },
+    ]},
+    { name: 'Growing', items: [
+      { id: 'Mealwood',              name: 'Mealwood',            icon: '🌱' },
+      { id: 'BasicFarm',             name: 'Farm Tile',           icon: '🌾' },
+      { id: 'FarmTile',              name: 'Hydroponic Farm',     icon: '🌿' },
+      { id: 'PlanterBox',            name: 'Planter Box',         icon: '🪴' },
+    ]},
+    { name: 'Storage', items: [
+      { id: 'Refrigerator',          name: 'Refrigerator',        icon: '❄️' },
+      { id: 'RationBox',             name: 'Ration Box',          icon: '📦' },
+    ]},
+  ]},
+  plumbing: { label: 'Plumbing', sections: [
+    { name: 'Washroom', items: [
+      { id: 'Outhouse',              name: 'Outhouse',            icon: '🚽' },
+      { id: 'FlushToilet',           name: 'Lavatory',            icon: '🚽' },
+      { id: 'WashBasin',             name: 'Wash Basin',          icon: '🚿' },
+      { id: 'Shower',                name: 'Shower',              icon: '🚿' },
+      { id: 'WashSink',              name: 'Sink',                icon: '🚿' },
+      { id: 'GunkRemover',           name: 'Gunk Extractor',      icon: '🧴' },
+    ]},
+    { name: 'Pumps', items: [
+      { id: 'LiquidPumpingStation',  name: 'Pitcher Pump',        icon: '🚰' },
+      { id: 'LiquidMiniPump',        name: 'Mini Liquid Pump',    icon: '🚰' },
+      { id: 'LiquidPump',            name: 'Liquid Pump',         icon: '🚰' },
+    ]},
+    { name: 'Valves', items: [
+      { id: 'BottleEmptier',         name: 'Bottle Emptier',      icon: '🧪' },
+      { id: 'BottleFiller',          name: 'Bottle Filler',       icon: '🧪' },
+      { id: 'LiquidFilter',          name: 'Liquid Filter',       icon: '🔽' },
+      { id: 'LiquidValve',           name: 'Liquid Valve',        icon: '🔽' },
+      { id: 'LiquidShutOff',         name: 'Liquid Shutoff',      icon: '🛑' },
+      { id: 'LiquidMeter',           name: 'Liquid Meter Valve',  icon: '📊' },
+      { id: 'LiquidBridge',          name: 'Liquid Bridge',       icon: '🌉' },
+    ]},
+    { name: 'Pipes', items: [
+      { id: 'LiquidConduit',         name: 'Liquid Pipe',         icon: '〰️' },
+      { id: 'InsulatedLiquidConduit',name: 'Insulated Pipe',      icon: '〰️' },
+      { id: 'FlowLiquidConduit',     name: 'Radiant Liq. Pipe',   icon: '〰️' },
+      { id: 'LiquidConduitBridge',   name: 'Pipe Bridge',         icon: '〰️' },
+    ]},
+    { name: 'Treatment', items: [
+      { id: 'WaterSieve',            name: 'Water Sieve',         icon: '💧' },
+      { id: 'Desalinator',           name: 'Desalinator',         icon: '💧' },
+      { id: 'AlgaeDistillery',       name: 'Algae Distillery',    icon: '🌿' },
+    ]},
+  ]},
+  ventilation: { label: 'Ventilation', sections: [
+    { name: 'Pumps', items: [
+      { id: 'GasPumpingStation',     name: 'Gas Pump',            icon: '🌀' },
+      { id: 'GasMiniPump',           name: 'Mini Gas Pump',       icon: '🌀' },
+    ]},
+    { name: 'Valves', items: [
+      { id: 'GasFilter',             name: 'Gas Filter',          icon: '🔽' },
+      { id: 'GasValve',              name: 'Gas Valve',           icon: '🔽' },
+      { id: 'GasShutOff',            name: 'Gas Shutoff',         icon: '🛑' },
+      { id: 'GasMeter',              name: 'Gas Meter Valve',     icon: '📊' },
+      { id: 'GasBridge',             name: 'Gas Bridge',          icon: '🌉' },
+      { id: 'GasVent',               name: 'Gas Vent',            icon: '🌀' },
+      { id: 'HighPressureGasVent',   name: 'High Pressure Vent',  icon: '🌀' },
+    ]},
+    { name: 'Pipes', items: [
+      { id: 'GasConduit',            name: 'Gas Pipe',            icon: '〰️' },
+      { id: 'InsulatedGasConduit',   name: 'Insulated Gas Pipe',  icon: '〰️' },
+      { id: 'FlowGasConduit',        name: 'Radiant Gas Pipe',    icon: '〰️' },
+      { id: 'GasConduitBridge',      name: 'Gas Pipe Bridge',     icon: '〰️' },
+    ]},
+    { name: 'Refinement', items: [
+      { id: 'RockCrusher',           name: 'Rock Crusher',        icon: '⚙️' },
+      { id: 'MetalRefinery',         name: 'Metal Refinery',      icon: '🏭' },
+      { id: 'Kiln',                  name: 'Kiln',                icon: '🔥' },
+      { id: 'OilRefinery',           name: 'Oil Refinery',        icon: '🛢️' },
+      { id: 'SandstoneRefinery',     name: 'Polymer Press',       icon: '⚙️' },
+      { id: 'GlassForge',            name: 'Glass Forge',         icon: '🔮' },
+    ]},
+  ]},
+  medicine: { label: 'Medicine', sections: [
+    { name: 'Medical', items: [
+      { id: 'DoctorStation',         name: 'Cot',                 icon: '🏥' },
+      { id: 'MedicalCot',            name: 'Hospital Bed',        icon: '🏥' },
+      { id: 'HealingVat',            name: 'Sick Bay',            icon: '💉' },
+      { id: 'Apothecary',            name: 'Apothecary',          icon: '💊' },
+      { id: 'PharmaceuticalPress',   name: 'Pharmaceutical Press',icon: '💊' },
+      { id: 'HandSanitizer',         name: 'Hand Sanitizer',      icon: '🧴' },
+    ]},
+  ]},
+  furniture: { label: 'Furniture', sections: [
+    { name: 'Sleeping', items: [
+      { id: 'Bed',                   name: 'Cot',                 icon: '🛏️' },
+      { id: 'LuxuryBed',             name: 'Comfy Bed',           icon: '🛏️' },
+      { id: 'BarrackBox',            name: 'Bunk Bed',            icon: '🛏️' },
+    ]},
+    { name: 'Recreation', items: [
+      { id: 'MassageTable',          name: 'Massage Table',       icon: '💆' },
+      { id: 'ArcadeMachine',         name: 'Arcade Cabinet',      icon: '🕹️' },
+      { id: 'EspressoMachine',       name: 'Espresso Machine',    icon: '☕' },
+      { id: 'Juicer',                name: 'Juicer',              icon: '🥤' },
+      { id: 'HotTub',                name: 'Hot Tub',             icon: '🛁' },
+    ]},
+    { name: 'Decor', items: [
+      { id: 'SmallSculpture',        name: 'Small Sculpture',     icon: '🗿' },
+      { id: 'Sculpture',             name: 'Sculpture',           icon: '🗿' },
+      { id: 'LargeSculpture',        name: 'Large Sculpture',     icon: '🗿' },
+      { id: 'Canvas',                name: 'Canvas',              icon: '🖼️' },
+      { id: 'CanvasWide',            name: 'Wide Canvas',         icon: '🖼️' },
+      { id: 'FloorLamp',             name: 'Ceiling Light',       icon: '💡' },
+      { id: 'Phonobox',              name: 'Phonobox',            icon: '📻' },
+    ]},
+    { name: 'Dining', items: [
+      { id: 'MessTable',             name: 'Mess Table',          icon: '🍽️' },
+      { id: 'DiningTable',           name: 'Dining Table',        icon: '🍽️' },
+    ]},
+  ]},
+  stations: { label: 'Stations', sections: [
+    { name: 'Research', items: [
+      { id: 'ResearchCenter',        name: 'Research Station',    icon: '🔬' },
+      { id: 'AdvancedResearchCenter',name: 'Super Computer',      icon: '💻' },
+      { id: 'CosmicResearchCenter',  name: 'Virtual Planetarium', icon: '🌌' },
+      { id: 'NuclearResearchCenter', name: 'Neutron Microscope',  icon: '🔬' },
+    ]},
+    { name: 'Storage & Logistics', items: [
+      { id: 'StorageLocker',         name: 'Storage Bin',         icon: '📦' },
+      { id: 'StorageLockerSmart',    name: 'Smart Storage Bin',   icon: '📦' },
+      { id: 'ObjectDispenser',       name: 'Conveyor Loader',     icon: '📤' },
+      { id: 'SweepBot',              name: 'Auto-Sweeper',        icon: '🤖' },
+      { id: 'DropAllWorkable',       name: 'Pneumatic Chute',     icon: '⬇️' },
+    ]},
+  ]},
+  utilities: { label: 'Utilities', sections: [
+    { name: 'Heating / Cooling', items: [
+      { id: 'HeatExchanger',         name: 'Thermo Aquatuner',    icon: '❄️' },
+      { id: 'ThermalBlock',          name: 'Thermo Regulator',    icon: '🌡️' },
+      { id: 'SpaceHeater',           name: 'Space Heater',        icon: '🔥' },
+      { id: 'ColdBreather',          name: 'Ice Maker',           icon: '🧊' },
+    ]},
+    { name: 'Misc', items: [
+      { id: 'Telepresence',          name: 'Printing Pod',        icon: '📡' },
+      { id: 'GeneShuffler',          name: 'Neural Vacillator',   icon: '🧬' },
+      { id: 'RailGun',               name: 'Rail Gun',            icon: '💥' },
+      { id: 'HEPEngine',             name: 'Particle Accelerator',icon: '⚛️' },
+    ]},
+  ]},
+  automation: { label: 'Automation', sections: [
+    { name: 'Logic Gates', items: [
+      { id: 'LogicGateAND',          name: 'AND Gate',            icon: '🔲' },
+      { id: 'LogicGateOR',           name: 'OR Gate',             icon: '🔲' },
+      { id: 'LogicGateNOT',          name: 'NOT Gate',            icon: '🔲' },
+      { id: 'LogicGateXOR',          name: 'XOR Gate',            icon: '🔲' },
+      { id: 'LogicGateBUFFER',       name: 'Buffer Gate',         icon: '🔲' },
+      { id: 'LogicGateFILTER',       name: 'Filter Gate',         icon: '🔲' },
+    ]},
+    { name: 'Sensors', items: [
+      { id: 'LogicTemperatureSensor',    name: 'Thermo Sensor',         icon: '🌡️' },
+      { id: 'LogicPressureSensorGas',    name: 'Gas Pressure Sensor',   icon: '📊' },
+      { id: 'LogicPressureSensorLiquid', name: 'Liquid Pressure Sensor',icon: '📊' },
+      { id: 'LogicMassSensor',           name: 'Weight Plate',          icon: '⚖️' },
+      { id: 'LogicCritterCountSensor',   name: 'Critter Sensor',        icon: '🐾' },
+      { id: 'LogicDuplicantSensor',      name: 'Duplicant Motion Sensor',icon: '👤' },
+      { id: 'LogicTimeOfDaySensor',      name: 'Cycle Sensor',          icon: '🕐' },
+      { id: 'LogicCounterSensor',        name: 'Counter',               icon: '🔢' },
+    ]},
+    { name: 'Actuators', items: [
+      { id: 'LogicReservoir',        name: 'Memory Toggle',       icon: '💾' },
+      { id: 'LogicSwitch',           name: 'Automation Switch',   icon: '🔘' },
+    ]},
+  ]},
+};
+
+// -----------------------------------------------------------------------
+// Drawer
+// -----------------------------------------------------------------------
+var activeDrawer = null;
+
+function clearEl(el) { while (el.firstChild) el.removeChild(el.firstChild); }
+
+function openDrawer(key, triggerEl) {
+  if (activeDrawer === key) { closeDrawer(); return; }
+  activeDrawer = key;
+
+  document.querySelectorAll('.tb-btn, .tb-action').forEach(function(b) { b.classList.remove('active'); });
+  if (triggerEl) triggerEl.classList.add('active');
+
+  var title = document.getElementById('drawer-title');
+  var list  = document.getElementById('drawer-list');
+  clearEl(list);
+
+  if (key === 'dig' || key === 'cancel' || key === 'priority') {
+    title.textContent = key === 'dig' ? 'Dig' : key === 'cancel' ? 'Cancel Dig' : 'Set Priority';
+    buildActionDrawer(list, key);
+  } else {
+    var cat = BUILDINGS[key];
+    if (!cat) return;
+    title.textContent = cat.label;
+    buildBuildingDrawer(list, cat);
+  }
+
+  document.getElementById('drawer').classList.add('open');
+}
+
+function closeDrawer() {
+  document.getElementById('drawer').classList.remove('open');
+  document.querySelectorAll('.tb-btn, .tb-action').forEach(function(b) { b.classList.remove('active'); });
+  activeDrawer = null;
+}
+
+function getCoords() {
+  return {
+    x: parseInt(document.getElementById('d-x').value, 10) || 0,
+    y: parseInt(document.getElementById('d-y').value, 10) || 0,
+  };
+}
+
+function buildBuildingDrawer(list, cat) {
+  cat.sections.forEach(function(section) {
+    var hdr = document.createElement('div');
+    hdr.className = 'drawer-section-header';
+    hdr.textContent = section.name;
+    list.appendChild(hdr);
+
+    section.items.forEach(function(item) {
+      var row = document.createElement('div');
+      row.className = 'drawer-item';
+
+      var iconEl = document.createElement('span');
+      iconEl.className = 'item-icon';
+      iconEl.textContent = item.icon;
+      row.appendChild(iconEl);
+
+      var info = document.createElement('div');
+      info.className = 'item-info';
+      var nameEl = document.createElement('div');
+      nameEl.className = 'item-name';
+      nameEl.textContent = item.name;
+      var idEl = document.createElement('div');
+      idEl.className = 'item-id';
+      idEl.textContent = item.id;
+      info.appendChild(nameEl);
+      info.appendChild(idEl);
+      row.appendChild(info);
+
+      var btn = document.createElement('button');
+      btn.className = 'item-place-btn';
+      btn.textContent = 'Place';
+      (function(bid) {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          var c = getCoords();
+          send({ action: 'place_building', building_id: bid, x: c.x, y: c.y });
+        });
+      })(item.id);
+      row.appendChild(btn);
+
+      list.appendChild(row);
+    });
+  });
+}
+
+function buildActionDrawer(list, key) {
+  if (key === 'dig') {
+    var row = document.createElement('div');
+    row.className = 'drawer-action-row';
+    var icon = document.createElement('span');
+    icon.className = 'item-icon';
+    icon.textContent = '⛏️';
+    var lbl = document.createElement('span');
+    lbl.className = 'item-label';
+    lbl.textContent = 'Dig cell at X/Y above';
+    var btn = document.createElement('button');
+    btn.textContent = 'Dig';
+    btn.addEventListener('click', function() {
+      var c = getCoords(); send({ action: 'dig', x: c.x, y: c.y });
+    });
+    row.appendChild(icon); row.appendChild(lbl); row.appendChild(btn);
+    list.appendChild(row);
+
+  } else if (key === 'cancel') {
+    var row2 = document.createElement('div');
+    row2.className = 'drawer-action-row';
+    var icon2 = document.createElement('span');
+    icon2.className = 'item-icon';
+    icon2.textContent = '✖️';
+    var lbl2 = document.createElement('span');
+    lbl2.className = 'item-label';
+    lbl2.textContent = 'Cancel dig at X/Y above';
+    var btn2 = document.createElement('button');
+    btn2.className = 'danger';
+    btn2.textContent = 'Cancel';
+    btn2.addEventListener('click', function() {
+      var c = getCoords(); send({ action: 'cancel_dig', x: c.x, y: c.y });
+    });
+    row2.appendChild(icon2); row2.appendChild(lbl2); row2.appendChild(btn2);
+    list.appendChild(row2);
+
+  } else if (key === 'priority') {
+    var row3 = document.createElement('div');
+    row3.className = 'drawer-pri-row';
+    var lbl3 = document.createElement('label');
+    lbl3.textContent = 'Priority (1-9)';
+    var inp = document.createElement('input');
+    inp.type = 'number'; inp.id = 'drawer-priority'; inp.min = 1; inp.max = 9; inp.value = 7;
+    var btn3 = document.createElement('button');
+    btn3.textContent = 'Set';
+    btn3.addEventListener('click', function() {
+      var c = getCoords();
+      var pri = parseInt(document.getElementById('drawer-priority').value, 10) || 7;
+      send({ action: 'set_priority', x: c.x, y: c.y, priority: pri });
+    });
+    row3.appendChild(lbl3); row3.appendChild(inp); row3.appendChild(btn3);
+    list.appendChild(row3);
+  }
+}
+
+// Wire up toolbar buttons
+document.querySelectorAll('[data-drawer]').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    openDrawer(btn.getAttribute('data-drawer'), btn);
+  });
+});
+document.getElementById('btn-noop').addEventListener('click', function() {
+  send({ action: 'no_op' });
+});
+
+// Close drawer on outside click
+document.addEventListener('click', function(e) {
+  var drawer  = document.getElementById('drawer');
+  var toolbar = document.getElementById('toolbar');
+  if (activeDrawer && !drawer.contains(e.target) && !toolbar.contains(e.target)) {
+    closeDrawer();
+  }
+});
+
+// -----------------------------------------------------------------------
+// WebSocket
+// -----------------------------------------------------------------------
+var ws;
+var reconnectTimer;
+
+function connect() {
+  ws = new WebSocket('ws://' + location.host + '/ws');
+  ws.onopen = function() {
+    document.getElementById('dot').classList.add('connected');
+    document.getElementById('status-text').textContent = 'Connected';
+    clearTimeout(reconnectTimer);
+  };
+  ws.onclose = function() {
+    document.getElementById('dot').classList.remove('connected');
+    document.getElementById('status-text').textContent = 'Disconnected — reconnecting...';
+    reconnectTimer = setTimeout(connect, 3000);
+  };
+  ws.onerror = function() {
+    document.getElementById('status-text').textContent = 'WebSocket error';
+  };
+  ws.onmessage = function(evt) {
+    var msg = JSON.parse(evt.data);
+    if (msg.type === 'state') renderState(msg.data);
+    if (msg.type === 'ack')   renderLog(msg.log);
+  };
+}
+
+function setText(id, text) { document.getElementById(id).textContent = text; }
+
+function renderState(d) {
+  setText('last-update', new Date().toLocaleTimeString());
+  setText('cycle',       d.cycle != null ? d.cycle : '—');
+  setText('time',        d.time  != null ? d.time.toFixed(1) + 's' : '—');
+  var dups   = d.duplicants || [];
+  var blds   = d.buildings  || [];
+  var alerts = d.alerts     || [];
+  var res    = d.resources  || {};
+  setText('dup-count',   dups.length);
+  setText('bld-count',   blds.length);
+  setText('alert-count', alerts.length);
+  setText('oxygen', res.oxygen_kg      != null ? res.oxygen_kg.toFixed(2)      + ' kg'   : '—');
+  setText('water',  res.water_kg       != null ? res.water_kg.toFixed(2)       + ' kg'   : '—');
+  setText('food',   res.food_kcal_today != null ? res.food_kcal_today.toFixed(0) + ' kcal' : '—');
+  setText('power',  res.power_kw       != null ? res.power_kw.toFixed(2)       + ' kW'   : '—');
+  setText('co2',    res.co2_kg         != null ? res.co2_kg.toFixed(3)         + ' kg'   : '—');
+
+  var dupEl = document.getElementById('duplicants');
+  clearEl(dupEl);
+  if (dups.length === 0) {
+    var m = document.createElement('span'); m.className = 'muted'; m.textContent = 'None'; dupEl.appendChild(m);
+  } else {
+    dups.forEach(function(dup) {
+      var row = document.createElement('div'); row.className = 'dup-row';
+      var nm  = document.createElement('div'); nm.className  = 'dup-name';   nm.textContent = dup.name;
+      var det = document.createElement('div'); det.className = 'dup-detail';
+      det.textContent = 'pos (' + dup.x + ', ' + dup.y + ')  |  stress ' +
+        ((dup.stress || 0) * 100).toFixed(0) + '%  |  hp ' +
+        (dup.health != null ? dup.health.toFixed(0) : '?') + '  |  ' + (dup.current_task || '');
+      row.appendChild(nm); row.appendChild(det); dupEl.appendChild(row);
+    });
+  }
+
+  var bldEl = document.getElementById('buildings');
+  clearEl(bldEl);
+  if (blds.length === 0) {
+    var m2 = document.createElement('span'); m2.className = 'muted'; m2.textContent = 'None'; bldEl.appendChild(m2);
+  } else {
+    blds.slice(0, 10).forEach(function(b) {
+      var row = document.createElement('div'); row.className = 'bld-row';
+      var t   = document.createElement('span'); t.className = 'bld-type'; t.textContent = b.type;
+      row.appendChild(t);
+      row.appendChild(document.createTextNode(' @ (' + b.x + ', ' + b.y + ')'));
+      if (!b.operational) {
+        var off = document.createElement('span'); off.className = 'bld-offline'; off.textContent = ' OFFLINE';
+        row.appendChild(off);
+      }
+      bldEl.appendChild(row);
+    });
+    if (blds.length > 10) {
+      var more = document.createElement('div'); more.className = 'muted';
+      more.textContent = '...and ' + (blds.length - 10) + ' more';
+      bldEl.appendChild(more);
+    }
+  }
+
+  var alertEl = document.getElementById('alerts');
+  clearEl(alertEl);
+  if (alerts.length === 0) {
+    var mn = document.createElement('span'); mn.className = 'muted'; mn.textContent = 'None'; alertEl.appendChild(mn);
+  } else {
+    alerts.forEach(function(a) {
+      var row = document.createElement('div'); row.className = 'alert-row'; row.textContent = a; alertEl.appendChild(row);
+    });
+  }
+}
+
+function renderLog(entries) {
+  var el = document.getElementById('log');
+  clearEl(el);
+  entries.slice().reverse().forEach(function(e) {
+    var div = document.createElement('div'); div.className = 'log-entry';
+    if      (e.indexOf('OK')        !== -1) div.classList.add('log-ok');
+    else if (e.indexOf('FAIL')      !== -1 ||
+             e.indexOf('error')     !== -1 ||
+             e.indexOf('failed')    !== -1) div.classList.add('log-fail');
+    else if (e.indexOf('Connected') !== -1) div.classList.add('log-info');
+    div.textContent = e;
+    el.appendChild(div);
+  });
+}
+
+function send(action) {
+  if (!ws || ws.readyState !== WebSocket.OPEN) { alert('Not connected.'); return; }
+  ws.send(JSON.stringify(action));
+}
+
+connect();
+</script>
+</body>
+</html>

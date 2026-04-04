@@ -47,7 +47,7 @@ The long-term goal is to feed game episodes back into a training pipeline on the
                    │ TCP (newline-delimited JSON)
                    │
 ┌──────────────────┼──────────────────────┐
-│        DGX Spark 1 / Mac Mini           │
+│              DGX Spark 1                │
 │                                         │
 │  ┌──────────────────────────────────┐   │
 │  │     ONI Agent (Python)           │   │
@@ -129,7 +129,7 @@ State snapshot fields (Phase 1):
 ### 2. ONI Agent — Python Client
 
 **Location:** `src/agent/`
-**Runs on:** DGX Spark 1 (or Mac Mini during dev)
+**Runs on:** DGX Spark 1
 **Language:** Python 3.11+
 
 Responsibilities:
@@ -164,7 +164,7 @@ User:   Colony state at cycle {cycle}:
 ### 3. Metrics Relay — Python Side-Car
 
 **Location:** `src/relay/`
-**Runs on:** DGX Spark 1 alongside the agent
+**Runs on:** DGX Spark 1, alongside the agent
 
 Responsibilities:
 - Subscribes to state snapshots from the bridge

@@ -1,43 +1,39 @@
-using HarmonyLib;
+using System.Collections;
 using UnityEngine;
 
 namespace ONIBridge
 {
     /// <summary>
-    /// Hooks into the game's update loop to:
-    ///   1. Drain pending AI action commands each frame (main thread safe)
-    ///   2. Send a state snapshot to the connected agent every N sim ticks
+    /// MonoBehaviour that runs a coroutine to drain actions and send state
+    /// every STATE_INTERVAL_SECONDS real-time seconds.
+    /// Attached to a persistent GameObject created at mod load time.
+    /// Does not depend on any ONI-specific tick hooks.
     /// </summary>
-    [HarmonyPatch(typeof(Game), "Update")]
-    public static class GameTickPatch
+    public class BridgeTicker : MonoBehaviour
     {
-        // Send state every 10 game updates (~1 second at normal speed)
-        private const int STATE_INTERVAL = 10;
-        private static int _tickCounter = 0;
+        private const float STATE_INTERVAL_SECONDS = 1.0f;
 
-        [HarmonyPostfix]
-        public static void Postfix()
+        private IEnumerator Start()
         {
-            var server = BridgeServer.Instance;
-
-            // Always drain actions — keeps latency low
-            server.DrainActions();
-
-            // Throttle state snapshots
-            _tickCounter++;
-            if (_tickCounter < STATE_INTERVAL) return;
-            _tickCounter = 0;
-
-            if (!server.IsConnected) return;
-
-            try
+            Debug.Log("[ONIBridge] BridgeTicker coroutine started.");
+            while (true)
             {
-                var state = StateSerializer.Serialize();
-                server.SendState(state);
-            }
-            catch (System.Exception ex)
-            {
-                Debug.LogWarning($"[ONIBridge] State serialization failed: {ex.Message}");
+                yield return new WaitForSeconds(STATE_INTERVAL_SECONDS);
+
+                var server = BridgeServer.Instance;
+                server.DrainActions();
+
+                if (!server.IsConnected) continue;
+
+                try
+                {
+                    var state = StateSerializer.Serialize();
+                    server.SendState(state);
+                }
+                catch (System.Exception ex)
+                {
+                    Debug.LogWarning($"[ONIBridge] State serialization failed: {ex.Message}");
+                }
             }
         }
     }

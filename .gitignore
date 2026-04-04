@@ -56,3 +56,11 @@ mod/ONIBridge/obj/
 mod/ONIBridge/lib/*.dll
 mod/ONIBridge/lib/*.pdb
 mod/ONIBridge/lib/*.xml
+
+# Screenshots and signal images (docs reference only, not tracked)
+docs/*.png
+docs/*.jpg
+docs/*.jpeg
+docs/*.webp
+docs/Screenshot*
+docs/signal-*

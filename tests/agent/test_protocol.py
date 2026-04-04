@@ -12,8 +12,9 @@ from src.agent.protocol import (
 def test_parse_valid_state_message():
     raw = json.dumps({
         "type": "state",
-        "cycle": 3,
         "data": {
+            "cycle": 3,
+            "time": 1.5,
             "resources": {"oxygen_kg": 12.5, "water_kg": 80.0, "food_kcal_today": 2000.0, "power_kw": 1.2, "co2_kg": 0.3},
             "duplicants": [{"id": 1, "name": "Higby", "x": 10, "y": 8, "stress": 0.1, "health": 100.0, "current_task": "dig"}],
             "buildings": [{"type": "OxygenDiffuser", "x": 5, "y": 5, "operational": True}],

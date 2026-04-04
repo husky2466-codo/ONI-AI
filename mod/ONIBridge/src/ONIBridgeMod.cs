@@ -7,8 +7,8 @@ namespace ONIBridge
 {
     /// <summary>
     /// Entry point for the ONI Bridge mod.
-    /// Starts a WebSocket server inside the game process so an external
-    /// AI agent can read game state and issue action commands.
+    /// Starts the TCP bridge server and creates a persistent GameObject
+    /// with a BridgeTicker coroutine — no Harmony patches needed for the tick loop.
     /// </summary>
     public class ONIBridgeMod : UserMod2
     {
@@ -19,6 +19,13 @@ namespace ONIBridge
             base.OnLoad(harmony);
             Debug.Log("[ONIBridge] Mod loaded — starting bridge server...");
             BridgeServer.Instance.Start(DEFAULT_PORT);
+
+            // Create a persistent GameObject to host the BridgeTicker coroutine.
+            // DontDestroyOnLoad ensures it survives scene transitions.
+            var go = new GameObject("ONIBridgeTicker");
+            go.AddComponent<BridgeTicker>();
+            Object.DontDestroyOnLoad(go);
+            Debug.Log("[ONIBridge] BridgeTicker created.");
         }
 
         public override void OnAllModsLoaded(Harmony harmony, IReadOnlyList<Mod> mods)

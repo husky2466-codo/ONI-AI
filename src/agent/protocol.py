@@ -23,10 +23,11 @@ def parse_state_message(raw: str) -> "StateMessage | None":
     if msg.get("type") != "state":
         return None
 
+    data = msg.get("data", {})
     return StateMessage(
-        cycle=int(msg.get("cycle", 0)),
-        time=float(msg.get("time", 0.0)),
-        data=msg.get("data", {}),
+        cycle=int(data.get("cycle", 0)),
+        time=float(data.get("time", 0.0)),
+        data=data,
     )
 
 
