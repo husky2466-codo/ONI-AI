@@ -641,7 +641,7 @@ function renderPerimeter() {
   var rew = (state && state.reward) || {};
 
   setText('peri-goal', peri.goal || '—');
-  setText('peri-bounds', peri.bounds ? '(' + peri.bounds[0] + ') → (' + peri.bounds[1] + ')' : '—');
+  setText('peri-bounds', peri.bounds && peri.bounds.length >= 2 ? '(' + peri.bounds[0] + ') → (' + peri.bounds[1] + ')' : '—');
   setText('peri-blueprint', peri.blueprint || '—');
   var pct = peri.progress_pct || 0;
   document.getElementById('peri-prog-fill').style.width = pct + '%';
