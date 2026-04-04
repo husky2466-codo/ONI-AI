@@ -12,6 +12,9 @@ namespace ONIBridge
     public class BridgeTicker : MonoBehaviour
     {
         private const float STATE_INTERVAL_SECONDS = 1.0f;
+        // Instance field (not static): resets automatically when the GameObject is destroyed
+        // and recreated on game restart — no manual OnDestroy reset needed.
+        private bool _autoloadAttempted = false;
 
         private IEnumerator Start()
         {
@@ -23,10 +26,18 @@ namespace ONIBridge
                 var server = BridgeServer.Instance;
                 server.DrainActions();
 
-                if (!server.IsConnected) continue;
-
                 // Skip if the game world isn't loaded yet
                 if (GameClock.Instance == null || ClusterManager.Instance == null) continue;
+
+                // Autoload: attempt once after world is confirmed loaded
+                if (!_autoloadAttempted
+                    && SaveLoader.Instance != null)
+                {
+                    _autoloadAttempted = true;
+                    AutoloadConfig.TryAutoload();
+                }
+
+                if (!server.IsConnected) continue;
 
                 try
                 {

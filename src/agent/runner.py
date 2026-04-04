@@ -35,6 +35,7 @@ from src.agent.client import BridgeClient
 from src.agent.llm import GeminiAgent
 from src.agent.perimeter import SpatialLedger
 from src.agent.protocol import build_abandon_perimeter, build_no_op
+from src.agent.reload import CANONICAL_SAVE, EpisodeReloader
 from src.agent.reward import RewardCalculator, format_colony_health
 
 logging.basicConfig(
@@ -235,189 +236,210 @@ async def websocket_endpoint(ws: WebSocket) -> None:
 _DEDUP_TTL = 5  # suppress identical AI actions for this many ticks
 
 
-async def run(host: str, port: int, api_key: str, episode_log: Path | None) -> None:
-    client = BridgeClient(host=host, port=port)
+async def run(
+    host: str,
+    port: int,
+    api_key: str,
+    episode_log: Path | None,
+    reloader: EpisodeReloader | None = None,
+) -> None:
     agent = GeminiAgent(api_key=api_key)
-    ledger = SpatialLedger()
-    reward_calc = RewardCalculator(ledger=ledger)
 
-    log_entries: list[dict] = []
-    last_ai_action: dict | None = None
-    last_ai_action_tick: int = 0
-    last_cycle: int = 0
-    empty_colony_ticks: int = 0  # consecutive ticks with no dupes
-    episode_end_condition: str | None = None
-    episode_id = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+    while True:
+        client = BridgeClient(host=host, port=port)
+        ledger = SpatialLedger()
+        reward_calc = RewardCalculator(ledger=ledger)
 
-    logger.info("Connecting to ONI bridge at %s:%d ...", host, port)
-    await client.connect()
-    logger.info("Connected. Starting agent loop. Relay on ws://0.0.0.0:%d/ws", RELAY_PORT)
+        log_entries: list[dict] = []
+        last_ai_action: dict | None = None
+        last_ai_action_tick: int = 0
+        last_cycle: int = 0
+        empty_colony_ticks: int = 0  # consecutive ticks with no dupes
+        episode_end_condition: str | None = None
+        episode_id = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
 
-    tick = 0
-    async for state in client.state_stream():
-        tick += 1
-        cycle = state.cycle
-        resources = state.data.get("resources", {})
-        alerts = state.data.get("alerts", [])
+        logger.info("Connecting to ONI bridge at %s:%d ...", host, port)
+        await client.connect()
+        logger.info("Connected. Starting agent loop. Relay on ws://0.0.0.0:%d/ws", RELAY_PORT)
 
-        # Update spatial ledger each tick
-        ledger.on_state(state.data)
+        tick = 0
+        async for state in client.state_stream():
+            tick += 1
+            cycle = state.cycle
+            resources = state.data.get("resources", {})
+            alerts = state.data.get("alerts", [])
 
-        # Auto-complete: perimeter hit 100% — send abandon to clean up mod side
-        if ledger.autocomplete_pending:
-            ledger.clear_autocomplete()
-            logger.info("Perimeter auto-complete — sending abandon_perimeter")
-            await client.send_action(build_abandon_perimeter())
-            relay.pending_action = build_abandon_perimeter()
+            # Update spatial ledger each tick
+            ledger.on_state(state.data)
 
-        # Reward calculation
-        tick_reward = reward_calc.tick(state.data)
-        episode_reward = reward_calc.episode_total
-        obligations = reward_calc.open_obligations()
+            # Auto-complete: perimeter hit 100% — send abandon to clean up mod side
+            if ledger.autocomplete_pending:
+                ledger.clear_autocomplete()
+                logger.info("Perimeter auto-complete — sending abandon_perimeter")
+                await client.send_action(build_abandon_perimeter())
+                relay.pending_action = build_abandon_perimeter()
 
-        # Episode lifecycle: empty colony check
-        if not state.data.get("duplicants"):
-            empty_colony_ticks += 1
-        else:
-            empty_colony_ticks = 0
+            # Reward calculation
+            tick_reward = reward_calc.tick(state.data)
+            episode_reward = reward_calc.episode_total
+            obligations = reward_calc.open_obligations()
 
-        if empty_colony_ticks >= EMPTY_COLONY_TICKS_THRESHOLD:
-            episode_end_condition = "loss"
-            logger.warning("All dupes dead for %d ticks — episode LOSS", empty_colony_ticks)
-
-        # Win condition check
-        if episode_end_condition is None:
-            episode_end_condition = _check_win_condition(
-                state.data, reward_calc.episode_record
-            )
-
-        # Update relay state and broadcast to dashboard subscribers
-        relay.last_state = state.data
-        await relay.broadcast({
-            "type": "state",
-            "data": state.data,
-            "agent": agent.stats,
-            "tick": tick,
-        })
-
-        logger.info(
-            "[tick %d | cycle %d] O2=%.2fkg food=%.0fkcal power=%.2fkW alerts=%d",
-            tick, cycle,
-            resources.get("oxygen_kg", 0),
-            resources.get("food_kcal", resources.get("food_kcal_today", 0)),
-            resources.get("power_kw", 0),
-            len(alerts),
-        )
-        if alerts:
-            for a in alerts:
-                logger.warning("  ALERT: %s", a)
-
-        # Reset dedup and pending action on new cycle
-        if cycle != last_cycle:
-            last_ai_action = None
-            relay.pending_action = None
-            last_cycle = cycle
-
-        # Check for a manual action from the dashboard first; fall back to AI
-        manual = relay.get_manual_action_nowait()
-        if manual:
-            action = manual
-            last_ai_action = None  # reset dedup on manual override
-            logger.info("  -> manual action from dashboard: %s", action)
-        else:
-            colony_health = format_colony_health(
-                state.data, tick_reward, episode_reward, obligations
-            )
-            candidate = agent.decide(
-                state.data,
-                pending_action=relay.pending_action,
-                ledger_context=ledger.format_context(),
-                colony_health=colony_health,
-            )
-            # Suppress repeated identical non-no_op AI actions for _DEDUP_TTL ticks
-            if (candidate == last_ai_action
-                    and candidate.get("action") != "no_op"
-                    and (tick - last_ai_action_tick) < _DEDUP_TTL):
-                logger.info("  -> dedup: suppressing repeat %s (sent %d ticks ago)",
-                            candidate.get("action"), tick - last_ai_action_tick)
-                action = build_no_op()
+            # Episode lifecycle: empty colony check
+            if not state.data.get("duplicants"):
+                empty_colony_ticks += 1
             else:
-                action = candidate
-                last_ai_action = candidate
-                last_ai_action_tick = tick
-            logger.info("  -> AI action: %s", action)
+                empty_colony_ticks = 0
 
-        await client.send_action(action)
-        relay.pending_action = action
+            if empty_colony_ticks >= EMPTY_COLONY_TICKS_THRESHOLD:
+                episode_end_condition = "loss"
+                logger.warning("All dupes dead for %d ticks — episode LOSS", empty_colony_ticks)
 
-        # Read ACK (non-blocking peek — ACK arrives on the same TCP stream,
-        # but state_stream() only yields state messages.  We handle the raw
-        # ACK inside BridgeClient by extending state_stream to pass acks through.)
-        # For now, log optimistically and let the next state confirm success.
-        ack_log = f"[{tick}] {action.get('action')}" + (
-            f" {action.get('building_id','')} @({action.get('cell_x','')},{action.get('cell_y','')})"
-            if action.get('action') == 'place_building' else
-            f" @({action.get('cell_x','')},{action.get('cell_y','')})"
-            if action.get('cell_x') is not None else ""
-        )
-        relay.append_log(ack_log)
-        await relay.broadcast({"type": "ack", "log": relay.log[-20:], "last_action": action})
+            # Win condition check
+            if episode_end_condition is None:
+                episode_end_condition = _check_win_condition(
+                    state.data, reward_calc.episode_record
+                )
 
-        if episode_log is not None:
-            log_entries.append({
-                "episode_id": episode_id,
+            # Update relay state and broadcast to dashboard subscribers
+            relay.last_state = state.data
+            await relay.broadcast({
+                "type": "state",
+                "data": state.data,
+                "agent": agent.stats,
                 "tick": tick,
-                "cycle": cycle,
-                "state": state.data,
-                "action": action,
-                "reward": tick_reward,
-                "ledger_snapshot": ledger.to_dict(),
             })
 
-    logger.info("Bridge closed after %d ticks.", tick)
+            logger.info(
+                "[tick %d | cycle %d] O2=%.2fkg food=%.0fkcal power=%.2fkW alerts=%d",
+                tick, cycle,
+                resources.get("oxygen_kg", 0),
+                resources.get("food_kcal", resources.get("food_kcal_today", 0)),
+                resources.get("power_kw", 0),
+                len(alerts),
+            )
+            if alerts:
+                for a in alerts:
+                    logger.warning("  ALERT: %s", a)
 
-    # Compute final outcome reward
-    outcome_reward = reward_calc.episode_end()
-    ep = reward_calc.episode_record
+            # Reset dedup and pending action on new cycle
+            if cycle != last_cycle:
+                last_ai_action = None
+                relay.pending_action = None
+                last_cycle = cycle
 
-    logger.info(
-        "Episode %s done: end=%s ticks=%d cycles=%d deaths=%d reward=%.1f outcome=%.1f",
-        episode_id,
-        episode_end_condition or "disconnect",
-        tick,
-        ep.final_cycle,
-        ep.total_deaths,
-        ep.total_reward,
-        outcome_reward,
-    )
+            # Check for a manual action from the dashboard first; fall back to AI
+            manual = relay.get_manual_action_nowait()
+            if manual:
+                action = manual
+                last_ai_action = None  # reset dedup on manual override
+                logger.info("  -> manual action from dashboard: %s", action)
+            else:
+                colony_health = format_colony_health(
+                    state.data, tick_reward, episode_reward, obligations
+                )
+                candidate = agent.decide(
+                    state.data,
+                    pending_action=relay.pending_action,
+                    ledger_context=ledger.format_context(),
+                    colony_health=colony_health,
+                )
+                # Suppress repeated identical non-no_op AI actions for _DEDUP_TTL ticks
+                if (candidate == last_ai_action
+                        and candidate.get("action") != "no_op"
+                        and (tick - last_ai_action_tick) < _DEDUP_TTL):
+                    logger.info("  -> dedup: suppressing repeat %s (sent %d ticks ago)",
+                                candidate.get("action"), tick - last_ai_action_tick)
+                    action = build_no_op()
+                else:
+                    action = candidate
+                    last_ai_action = candidate
+                    last_ai_action_tick = tick
+                logger.info("  -> AI action: %s", action)
 
-    if episode_log is not None and log_entries:
-        # Default path: data/episodes/YYYYMMDD-HHMMSS-<seed>.jsonl
-        if episode_log == Path("auto"):
-            episode_log = Path("data/episodes") / f"{episode_id}-{CANONICAL_SEED[:12]}.jsonl"
+            await client.send_action(action)
+            relay.pending_action = action
 
-        episode_log.parent.mkdir(parents=True, exist_ok=True)
+            # Read ACK (non-blocking peek — ACK arrives on the same TCP stream,
+            # but state_stream() only yields state messages.  We handle the raw
+            # ACK inside BridgeClient by extending state_stream to pass acks through.)
+            # For now, log optimistically and let the next state confirm success.
+            ack_log = f"[{tick}] {action.get('action')}" + (
+                f" {action.get('building_id','')} @({action.get('cell_x','')},{action.get('cell_y','')})"
+                if action.get('action') == 'place_building' else
+                f" @({action.get('cell_x','')},{action.get('cell_y','')})"
+                if action.get('cell_x') is not None else ""
+            )
+            relay.append_log(ack_log)
+            await relay.broadcast({"type": "ack", "log": relay.log[-20:], "last_action": action})
 
-        # Write JSONL: one JSON object per line
-        with open(episode_log, "w") as f:
-            # First line: episode summary
-            summary = {
-                "episode_id": episode_id,
-                "seed": CANONICAL_SEED,
-                "end_condition": episode_end_condition or "disconnect",
-                "start_cycle": ep.start_cycle,
-                "final_cycle": ep.final_cycle,
-                "total_ticks": tick,
-                "total_deaths": ep.total_deaths,
-                "total_reward": ep.total_reward,
-                "outcome_reward": outcome_reward,
-                "milestones": ep.milestones,
-                "agent_stats": agent.stats,
-            }
-            f.write(json.dumps(summary) + "\n")
-            for entry in log_entries:
-                f.write(json.dumps(entry) + "\n")
-        logger.info("Episode log saved to %s (%d ticks)", episode_log, len(log_entries))
+            if episode_log is not None:
+                log_entries.append({
+                    "episode_id": episode_id,
+                    "tick": tick,
+                    "cycle": cycle,
+                    "state": state.data,
+                    "action": action,
+                    "reward": tick_reward,
+                    "ledger_snapshot": ledger.to_dict(),
+                })
+
+        logger.info("Bridge closed after %d ticks.", tick)
+
+        # Compute final outcome reward
+        outcome_reward = reward_calc.episode_end()
+        ep = reward_calc.episode_record
+
+        logger.info(
+            "Episode %s done: end=%s ticks=%d cycles=%d deaths=%d reward=%.1f outcome=%.1f",
+            episode_id,
+            episode_end_condition or "disconnect",
+            tick,
+            ep.final_cycle,
+            ep.total_deaths,
+            ep.total_reward,
+            outcome_reward,
+        )
+
+        if episode_log is not None and log_entries:
+            # Default path: data/episodes/YYYYMMDD-HHMMSS-<seed>.jsonl
+            if episode_log == Path("auto"):
+                episode_log = Path("data/episodes") / f"{episode_id}-{CANONICAL_SEED[:12]}.jsonl"
+
+            episode_log.parent.mkdir(parents=True, exist_ok=True)
+
+            # Write JSONL: one JSON object per line
+            with open(episode_log, "w") as f:
+                # First line: episode summary
+                summary = {
+                    "episode_id": episode_id,
+                    "seed": CANONICAL_SEED,
+                    "end_condition": episode_end_condition or "disconnect",
+                    "start_cycle": ep.start_cycle,
+                    "final_cycle": ep.final_cycle,
+                    "total_ticks": tick,
+                    "total_deaths": ep.total_deaths,
+                    "total_reward": ep.total_reward,
+                    "outcome_reward": outcome_reward,
+                    "milestones": ep.milestones,
+                    "agent_stats": agent.stats,
+                }
+                f.write(json.dumps(summary) + "\n")
+                for entry in log_entries:
+                    f.write(json.dumps(entry) + "\n")
+            logger.info("Episode log saved to %s (%d ticks)", episode_log, len(log_entries))
+
+        if reloader is None:
+            # No auto-reload: exit after the first episode
+            break
+
+        logger.info("Auto-reload enabled — resetting episode...")
+        result = await reloader.reset_episode()
+        if result.success:
+            logger.info("Episode reset in %.1fs — reconnecting", result.elapsed_s)
+            # Loop back to reconnect and start the next episode
+        else:
+            logger.error("Episode reset failed: %s — stopping", result.error)
+            break
 
 
 def main() -> None:
@@ -430,6 +452,8 @@ def main() -> None:
                         help="Google API key (or set GOOGLE_API_KEY env var)")
     parser.add_argument("--log-episode", default=None,
                         help="Path to write episode JSONL log, or 'auto' for data/episodes/ auto-naming")
+    parser.add_argument("--save", default=CANONICAL_SAVE, help="Save path for episode resets")
+    parser.add_argument("--auto-reload", action="store_true", help="Enable automatic episode reloading")
     args = parser.parse_args()
 
     if not args.api_key:
@@ -442,6 +466,10 @@ def main() -> None:
     global _game_host
     _game_host = args.host
 
+    reloader: EpisodeReloader | None = (
+        EpisodeReloader(save_path=args.save) if args.auto_reload else None
+    )
+
     async def _run_all() -> None:
         # Start the uvicorn relay server as a background task
         config = uvicorn.Config(app, host="0.0.0.0", port=args.relay_port,
@@ -449,7 +477,7 @@ def main() -> None:
         server = uvicorn.Server(config)
         relay_task = asyncio.create_task(server.serve())
         agent_task = asyncio.create_task(
-            run(args.host, args.port, args.api_key, episode_log)
+            run(args.host, args.port, args.api_key, episode_log, reloader)
         )
         # Run both; if agent loop exits, cancel the relay
         done, pending = await asyncio.wait(
