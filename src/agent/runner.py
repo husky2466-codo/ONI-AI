@@ -355,6 +355,13 @@ async def run(
                         colony_health=colony_health,
                     ),
                 )
+                # Hard block: never send place_perimeter when one is already active.
+                # The mod rejects it anyway, but this prevents the agent from wasting
+                # every tick retrying it instead of doing actual work.
+                if candidate.get("action") == "place_perimeter" and ledger.active is not None:
+                    logger.info("  -> runner blocked place_perimeter (perimeter already active)")
+                    candidate = build_no_op()
+
                 # Suppress repeated identical non-no_op AI actions for _DEDUP_TTL ticks
                 if (candidate == last_ai_action
                         and candidate.get("action") != "no_op"
