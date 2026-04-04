@@ -6,67 +6,173 @@ namespace ONIBridge
     /// <summary>
     /// Serializes the current ONI game state into a JSON-safe object
     /// that gets sent to the AI agent each tick.
-    /// Expands as we map more of the game's internal APIs.
     /// </summary>
     public static class StateSerializer
     {
+        // Known diagnostic IDs used by ColonyDiagnosticUtility.GetDiagnostic(id, worldId)
+        private static readonly string[] DiagnosticIds = new[]
+        {
+            "BreathabilityDiagnostic",
+            "FoodDiagnostic",
+            "StressDiagnostic",
+            "BedDiagnostic",
+            "ToiletDiagnostic",
+            "IdleDiagnostic",
+            "HeatDiagnostic",
+            "EntombedDiagnostic",
+            "DecorDiagnostic",
+            "FloatingRocketDiagnostic",
+        };
+
         public static object Serialize()
         {
             return new
             {
-                cycle = GetCycle(),
-                time = GetTime(),
-                resources = GetResources(),
+                cycle      = GetCycle(),
+                time       = GetTime(),
+                resources  = GetResources(),
                 duplicants = GetDuplicants(),
-                alerts = GetAlerts(),
+                buildings  = GetBuildings(),
+                alerts     = GetAlerts(),
             };
         }
 
+        // ------------------------------------------------------------------ //
+
         private static int GetCycle()
         {
-            // TODO: GameClock.Instance.GetCycle()
-            return 0;
+            return GameClock.Instance != null ? (int)GameClock.Instance.GetCycle() : 0;
         }
 
         private static float GetTime()
         {
-            // TODO: GameClock.Instance.GetTime()
-            return 0f;
+            return GameClock.Instance != null ? GameClock.Instance.GetTime() : 0f;
         }
 
         private static object GetResources()
         {
-            // TODO: Read from WorldInventory.Instance or ClusterManager
+            // WorldInventory is accessed through ClusterManager -> activeWorld -> worldInventory
+            WorldInventory inv = null;
+            if (ClusterManager.Instance != null)
+                inv = ClusterManager.Instance.activeWorld?.worldInventory;
+
+            float oxygen = 0f, water = 0f, co2 = 0f;
+            if (inv != null)
+            {
+                oxygen = inv.GetAmount(SimHashes.Oxygen.CreateTag(), false);
+                water  = inv.GetAmount(SimHashes.Water.CreateTag(), false);
+                co2    = inv.GetAmount(SimHashes.CarbonDioxide.CreateTag(), false);
+            }
+
+            // RationTracker.Get() returns the singleton; GetAmountConsumed() gives today's
+            // calories consumed (no "remaining" API exists).
+            float foodConsumed = 0f;
+            var rt = RationTracker.Get();
+            if (rt != null) foodConsumed = rt.GetAmountConsumed();
+
+            // Sum wattage across all active generators using Components.Generators
+            float powerWatts = 0f;
+            if (Components.Generators != null)
+            {
+                foreach (Generator gen in Components.Generators)
+                {
+                    if (gen != null && gen.IsProducingPower())
+                        powerWatts += gen.WattageRating;
+                }
+            }
+
             return new
             {
-                oxygen_kg = 0f,
-                water_kg = 0f,
-                food_kcal = 0f,
-                power_kw = 0f,
+                oxygen_kg         = oxygen       / 1000f,
+                water_kg          = water        / 1000f,
+                food_kcal_today   = foodConsumed,
+                power_kw          = powerWatts   / 1000f,
+                co2_kg            = co2          / 1000f,
             };
         }
 
         private static List<object> GetDuplicants()
         {
             var result = new List<object>();
-            // TODO: foreach (MinionIdentity minion in Components.MinionIdentities)
-            // {
-            //     result.Add(new {
-            //         id = minion.GetInstanceID(),
-            //         name = minion.name,
-            //         x = (int)minion.transform.position.x,
-            //         y = (int)minion.transform.position.y,
-            //         stress = minion.GetComponent<StressMonitor.Instance>()?.stress ?? 0f,
-            //         health = minion.GetComponent<Health>()?.hitPoints ?? 0f,
-            //     });
-            // }
+            if (Components.MinionIdentities == null) return result;
+
+            foreach (MinionIdentity minion in Components.MinionIdentities)
+            {
+                if (minion == null) continue;
+                var pos = minion.transform.position;
+
+                // StressMonitor.Instance has a public 'stress' field (0–1 range)
+                float stress = 0f;
+                var stressMon = minion.GetSMI<StressMonitor.Instance>();
+                if (stressMon != null) stress = stressMon.stress.value;
+
+                float health = 0f;
+                var hp = minion.GetComponent<Health>();
+                if (hp != null) health = hp.hitPoints;
+
+                string currentTask = "idle";
+                var chore = minion.GetComponent<ChoreDriver>()?.GetCurrentChore();
+                if (chore != null) currentTask = chore.choreType?.Id ?? "unknown";
+
+                result.Add(new
+                {
+                    id           = minion.GetInstanceID(),
+                    name         = minion.name,
+                    x            = (int)pos.x,
+                    y            = (int)pos.y,
+                    stress       = System.Math.Round(stress, 3),
+                    health       = System.Math.Round(health, 1),
+                    current_task = currentTask,
+                });
+            }
+            return result;
+        }
+
+        private static List<object> GetBuildings()
+        {
+            var result = new List<object>();
+            if (Components.BuildingCompletes == null) return result;
+
+            foreach (BuildingComplete b in Components.BuildingCompletes)
+            {
+                if (b == null) continue;
+                var pos = b.transform.position;
+                var op  = b.GetComponent<Operational>();
+                result.Add(new
+                {
+                    type        = b.Def?.PrefabID ?? "unknown",
+                    x           = (int)pos.x,
+                    y           = (int)pos.y,
+                    operational = op != null && op.IsOperational,
+                });
+            }
             return result;
         }
 
         private static List<string> GetAlerts()
         {
             var alerts = new List<string>();
-            // TODO: Read from Notifier or ColonyDiagnosticUtility
+            var util   = ColonyDiagnosticUtility.Instance;
+            if (util == null) return alerts;
+            if (ClusterManager.Instance == null) return alerts;
+
+            int worldId = ClusterManager.Instance.activeWorldId;
+
+            // Query each known diagnostic by string ID.
+            // GetDiagnostic returns null if the diagnostic isn't registered for this world.
+            foreach (string diagId in DiagnosticIds)
+            {
+                var diag = util.GetDiagnostic(diagId, worldId);
+                if (diag?.LatestResult == null) continue;
+
+                var opinion = diag.LatestResult.opinion;
+                // Report anything Bad or worse (DuplicantThreatening ranks below Bad in severity)
+                if (opinion == ColonyDiagnostic.DiagnosticResult.Opinion.Bad ||
+                    opinion == ColonyDiagnostic.DiagnosticResult.Opinion.DuplicantThreatening)
+                {
+                    alerts.Add($"{diagId}: {diag.LatestResult.Message}");
+                }
+            }
             return alerts;
         }
     }
