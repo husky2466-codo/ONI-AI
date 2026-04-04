@@ -1,0 +1,4 @@
+title: ONI Bridge
+description: WebSocket bridge exposing game state and accepting AI action commands for autonomous agent research.
+staticID: ONIBridge
+version: 0.1.0
