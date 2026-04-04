@@ -105,6 +105,9 @@ def insert_row(conn: sqlite3.Connection, table: str, page_id: str, name: str, bo
 
 def main() -> None:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    # Remove existing DB to avoid FTS5 index corruption on re-run
+    if DB_PATH.exists():
+        DB_PATH.unlink()
     conn = sqlite3.connect(DB_PATH)
     create_schema(conn)
 

@@ -36,18 +36,15 @@ namespace ONIBridge
                         speed = System.Math.Max(0, System.Math.Min(3, speed));
                         try
                         {
+                            if (SpeedControlScreen.Instance == null)
+                            {
+                                BridgeServer.Instance.SendAck(cmd.Action, false, "SpeedControlScreen not available");
+                                break;
+                            }
                             if (speed == 0)
-                            {
-                                // Pause
-                                if (SpeedControlScreen.Instance != null)
-                                    SpeedControlScreen.Instance.Pause();
-                            }
+                                SpeedControlScreen.Instance.Pause();
                             else
-                            {
-                                // Speed 1=normal, 2=fast, 3=ultra — matches SpeedControlScreen button indices
-                                if (SpeedControlScreen.Instance != null)
-                                    SpeedControlScreen.Instance.SetSpeed(speed);
-                            }
+                                SpeedControlScreen.Instance.SetSpeed(speed);
                             BridgeServer.Instance.SendAck(cmd.Action, true);
                             Debug.Log($"[ONIBridge] Speed set to {speed}");
                         }

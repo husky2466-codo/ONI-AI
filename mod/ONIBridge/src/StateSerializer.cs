@@ -254,6 +254,12 @@ namespace ONIBridge
             int w = ex - wx + 1;
             int h = ey - wy + 1;
 
+            if (w <= 0 || h <= 0)
+            {
+                Debug.LogWarning($"[ONIBridge] GetTiles: degenerate window w={w} h={h}, skipping");
+                return new { x = 0, y = 0, w = 0, h = 0, data = new System.Collections.Generic.List<object>() };
+            }
+
             var data = new System.Collections.Generic.List<object>();
             for (int row = 0; row < h; row++)
             {
