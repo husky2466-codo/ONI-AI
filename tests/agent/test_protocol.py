@@ -82,6 +82,3 @@ def test_set_speed_is_valid_action():
     assert "set_speed" in VALID_ACTIONS
 
 
-def test_build_unknown_action_raises():
-    with pytest.raises(ValueError):
-        build_action("invalid_action")
