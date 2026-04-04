@@ -48,6 +48,10 @@ htmlcov/
 dist/
 out/
 
+# .NET build artifacts
+mod/ONIBridge/bin/
+mod/ONIBridge/obj/
+
 # Game DLLs (Oxygen Not Included bridge binaries — non-redistributable)
 mod/ONIBridge/lib/*.dll
 mod/ONIBridge/lib/*.pdb
