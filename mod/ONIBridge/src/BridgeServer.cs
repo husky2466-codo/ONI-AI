@@ -83,6 +83,30 @@ namespace ONIBridge
             }
         }
 
+        /// <summary>
+        /// Send an action acknowledgement to the connected AI agent.
+        /// Called from the main game thread after executing an action.
+        /// </summary>
+        public void SendAck(string action, bool success, string? error = null)
+        {
+            if (_connectedClient?.Connected != true) return;
+            try
+            {
+                var msg = JsonConvert.SerializeObject(new AckMessage
+                {
+                    Action = action,
+                    Success = success,
+                    Error = error
+                });
+                var bytes = Encoding.UTF8.GetBytes(msg + "\n");
+                _connectedClient.GetStream().Write(bytes, 0, bytes.Length);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[ONIBridge] SendAck failed: {ex.Message}");
+            }
+        }
+
         private void ListenLoop(int port)
         {
             _listener = new TcpListener(IPAddress.Any, port);
