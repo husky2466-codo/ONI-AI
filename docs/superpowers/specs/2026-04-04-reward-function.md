@@ -511,6 +511,71 @@ class EpisodeRecord:
 
 ---
 
+## Reward Scale, Normalization, and Discount Factor
+
+### Expected reward ranges
+
+Understanding the scale of each component is required before connecting to any RL optimizer.
+
+| Component | Typical range per tick | Notes |
+|-----------|----------------------|-------|
+| Survival (3 dupes, healthy) | +0.30 to +0.35 | Base positive signal |
+| Survival (oxygen crisis) | -0.15 to +0.15 | Breathability penalty dominates |
+| Progress (cycle boundary) | +1.0 to +5.0 | Fires once per cycle, not per tick |
+| Dupe death | -10.0 | Spike event |
+| Memorial placed | +2.0 | Spike event |
+| Episode outcome (good run) | +50 to +150 | Added once at end |
+
+Approximately **500 ticks of healthy survival = one dupe death penalty**. This ratio is
+intentional for Phase 1: the agent should be risk-averse about dupe lives without being
+paralyzed. Tune empirically after first 10+ episodes.
+
+### Clipping
+
+Clip per-tick reward to `[-2.0, +2.0]` before passing to the optimizer. This prevents
+dupe-death spikes (-10.0) from dominating gradient updates and destabilizing training.
+The -10.0 spike is still logged to the episode record for analysis; only the optimizer
+input is clipped.
+
+```python
+REWARD_CLIP_MIN = -2.0
+REWARD_CLIP_MAX = +2.0
+
+def clip(r: float) -> float:
+    return max(REWARD_CLIP_MIN, min(REWARD_CLIP_MAX, r))
+```
+
+### Normalization
+
+Normalize episode returns (sum of all tick rewards + outcome reward) across a training batch
+before the GRPO update. Use running mean and std tracked across episodes:
+
+```python
+# In training pipeline (DGX side, not runner.py)
+normalized_return = (episode_return - running_mean) / (running_std + 1e-8)
+```
+
+Do not normalize until at least 10 episodes of data exist to establish stable statistics.
+Before that, use raw returns.
+
+### Discount factor γ
+
+**Recommended γ = 0.999.**
+
+ONI episodes run ~60,000 ticks (100 cycles × 600 ticks/cycle). At γ = 0.99, a reward
+1 cycle (600 ticks) in the future retains only 0.99^600 ≈ 0.002 of its value — the agent
+is effectively blind past a few ticks and will never learn to plant a farm at cycle 3 for
+food payoff at cycle 8.
+
+At γ = 0.999, one cycle out retains 0.999^600 ≈ 0.55 of value — the agent can reason
+about consequences several cycles ahead while still prioritizing immediate survival.
+
+For GRPO fine-tuning on the DGX, γ is applied at the episode-return level rather than
+per-step, so its impact is less direct than in PPO. Set γ = 0.999 as the default; revisit
+if the agent shows myopic behavior (ignoring obvious long-horizon investments).
+
+---
+
 ## How This Builds Over Time
 
 The system is designed to self-improve through three mechanisms:

@@ -316,6 +316,10 @@ class TaskBoard:
                 remaining.append({**step, "abs_x": abs_x, "abs_y": abs_y})
 
         ordered = _topological_sort(remaining, blueprint["dependencies"])
+        # Cycle resolution: ONI blueprints should never contain true dependency cycles
+        # (A requires B, B requires A). If one is detected, break it by preferring the
+        # node with fewer total dependents. If equal, select arbitrarily and log a warning.
+        # A cycle in a blueprint JSON is a data error and should be fixed in the library.
         next_tasks = [
             f"Place {s['type']} at ({s['abs_x']},{s['abs_y']})"
             for s in ordered[:5]

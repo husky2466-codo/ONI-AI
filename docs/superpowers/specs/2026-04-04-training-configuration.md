@@ -122,10 +122,17 @@ Define win conditions that increase in difficulty as the agent improves:
 
 | Phase | Win Condition | Description |
 |-------|--------------|-------------|
+| 0 | Stay alive for 3 cycles, no dupe deaths | Smoke test — validates the full loop works before tuning begins |
 | 1 | Survive to cycle 10 | Dupes alive, oxygen positive, no starvation |
 | 2 | Survive to cycle 25 with SPOM active | Self-sustaining oxygen |
 | 3 | Survive to cycle 50 with 5+ dupes | Colony growth |
 | 4 | Survive to cycle 100 | Long-run stability |
+
+**Phase 0 rationale:** "Survive to cycle 10" is too binary as a smoke test — the agent either
+trivially passes or dies at cycle 1–3 with no gradient to debug from. Phase 0 is achievable
+with near-zero competent play (the starting conditions survive 3 cycles with almost no
+actions) but immediately distinguishes a working loop from a broken one. Graduate to Phase 1
+only after Phase 0 passes consistently across 5+ episodes.
 
 ### Episode reset
 
@@ -139,6 +146,11 @@ When an episode ends (any condition):
 **Game reload automation:** The game must be restarted or reloaded between episodes. This is
 currently manual. Automation via `xdotool` (already used for settings) is feasible — send
 key sequences to quit to main menu and reload the save. Design this in a separate spec.
+
+**Priority note:** Game reload automation is the single biggest bottleneck for training
+throughput. Manual reloads cap training at ~2–4 episodes per hour. Automated reloads could
+reach 10–20+ per hour. This must be elevated to P1 once episode logging is confirmed
+working — do not treat it as a polish item.
 
 ---
 
