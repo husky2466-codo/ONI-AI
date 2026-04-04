@@ -4,149 +4,162 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-ONI-AI is a reinforcement learning agent for playing Oxygen Not Included (ONI), a complex colony simulation game. The project follows a 5-phase roadmap:
+ONI-AI is an AI agent for playing Oxygen Not Included (ONI). The current approach uses a live
+**Gemini LLM agent** connected to the running game via a C# Harmony mod (ONIBridge). A longer-term
+RL pipeline (Phases 1–5) is scaffolded but not the active focus.
 
-| Phase | Name | Status |
-|-------|------|--------|
-| 1 | Data Extraction | Complete |
-| 2 | Environment Design | Ready to start |
-| 3 | Baseline Models | Pending |
-| 4 | RL Training | Pending |
-| 5 | Hierarchical Planning | In progress (Task 5.1) |
+### Current Status (2026-04-04)
 
-See `.kiro/specs/oni-ai/tasks.md` for the detailed implementation roadmap.
+| Component | Status |
+|-----------|--------|
+| ONIBridge C# mod (TCP bridge) | Live — deployed on Linux desktop |
+| Gemini agent (Python) | Live — first session ran 2026-04-04 |
+| Dashboard (FastAPI + WebSocket) | Live — speed controls, settings button, live state |
+| Wiki tool calling | Complete — SQLite FTS5, Gemini function calling |
+| Grid vision (tile window) | Complete — 64×64 tile window in state payload |
+| RL pipeline (Phases 1–5) | Scaffolded, not active focus |
+
+### Known Issues (from first live session)
+- Agent loses spatial reasoning after a few actions — tile window needs better prompt framing
+- Stress values read >1.0 (StressMonitor.stress.value not clamped)
+- Food kcal reads ~16M (Edible.Calories unit mismatch — likely grams not kcal)
+
+See `docs/session-logs/` for session notes.
+
+## Infrastructure
+
+| Machine | IP | Role | SSH |
+|---------|----|------|-----|
+| Mac Mini M4 Pro | 10.0.0.210 | Dev machine (YOU ARE HERE) | localhost |
+| Linux Desktop | 10.0.0.10 | Game host (ONI + ONIBridge) | `ssh -o IdentitiesOnly=yes -i ~/.ssh/id_ed25519 myroproductions@10.0.0.10` |
+| DGX Spark | 10.0.0.69 | AI compute (future training) | `ssh dgx1-ssh` |
+
+**ONI mod path on Linux desktop:**
+`~/.config/unity3d/Klei/Oxygen Not Included/mods/Dev/ONIBridge/ONIBridge.dll`
+
+**Game log:**
+`~/.config/unity3d/Klei/Oxygen Not Included/Player.log`
+
+## Running the Agent
+
+```bash
+# 1. Build and deploy the mod (from Mac)
+cd mod/ONIBridge && dotnet build
+scp -o IdentitiesOnly=yes -i ~/.ssh/id_ed25519 \
+  bin/Debug/net471/ONIBridge.dll \
+  "myroproductions@10.0.0.10:/home/myroproductions/.config/unity3d/Klei/Oxygen Not Included/mods/Dev/ONIBridge/ONIBridge.dll"
+
+# 2. Start the runner (from Mac, game must be running on Linux desktop)
+GOOGLE_API_KEY=<key> python3 -m src.agent.runner --host 10.0.0.10
+
+# 3. Start the dashboard (separate terminal)
+python3 examples/dashboard/server.py
+# Open http://localhost:8181
+
+# 4. Build wiki DB (one-time)
+python3 scripts/build_wiki_db.py
+```
+
+## Architecture
+
+### ONIBridge (C# Harmony Mod)
+
+`mod/ONIBridge/src/`
+- `ONIBridgeMod.cs` — Harmony entry point, registers patches
+- `BridgeServer.cs` — TCP server on port 9999, newline-delimited JSON
+- `BridgeTicker.cs` — MonoBehaviour coroutine, fires every 1s
+- `GameTickPatch.cs` — Harmony patch on SimEveryTick, drains action queue
+- `StateSerializer.cs` — Serializes game state → JSON (cycle, resources, duplicants, buildings, alerts, tiles)
+- `ActionExecutor.cs` — Executes AI actions (place_building, dig, cancel_dig, set_priority, set_speed, no_op)
+- `ActionCommand.cs` — Deserialized action payload
+
+### Python Agent
+
+`src/agent/`
+- `runner.py` — Main loop: owns TCP connection, runs Gemini, serves WebSocket relay on :8182
+- `llm.py` — `GeminiAgent`: formats state prompt, multi-turn wiki tool calling, parses action JSON
+- `protocol.py` — Message types, `VALID_ACTIONS`, `build_action()`, `parse_state_message()`
+- `client.py` — Async TCP client, `state_stream()` generator
+
+### Dashboard
+
+`examples/dashboard/`
+- `index.html` — Single-page dashboard: live state, building placement drawer, speed controls, settings button
+- `server.py` — FastAPI server on :8181, subscribes to runner relay, proxies actions back
+
+### Wiki
+
+`scripts/build_wiki_db.py` — One-time scraper → `data/wiki.db` (SQLite FTS5, gitignored)
+
+### Protocol (TCP, newline-delimited JSON)
+
+**Game → Agent (state):**
+```json
+{
+  "type": "state",
+  "data": {
+    "cycle": 1, "time": 100.3,
+    "resources": {"oxygen_kg": 0.0, "water_kg": 0.0, "food_kcal": 0.0, "power_kw": 0.0, "co2_kg": 0.0},
+    "duplicants": [{"id": -126192, "name": "Lindsay", "x": 132, "y": 203, "stress": 0.5, "health": 100.0, "current_task": "Dig"}],
+    "buildings": [{"type": "Tile", "x": 127, "y": 202, "operational": true}],
+    "alerts": [],
+    "tiles": {"x": 109, "y": 187, "w": 64, "h": 64, "data": [["Sandstone", 1800.0], ...]}
+  }
+}
+```
+
+**Agent → Game (action):**
+```json
+{"type": "action", "action": "dig", "cell_x": 115, "cell_y": 202}
+{"type": "action", "action": "place_building", "building_id": "Bed", "cell_x": 116, "cell_y": 201}
+{"type": "action", "action": "set_speed", "speed": 1}
+{"type": "action", "action": "no_op"}
+```
+
+**Dashboard UI action (WebSocket, not forwarded to game TCP):**
+```json
+{"type": "ui_action", "action": "open_settings"}
+```
 
 ## Commands
 
 ### Testing
 
 ```bash
-# Run all tests
+# Agent tests (fast, no game required)
+pytest tests/agent/ -v
+
+# All tests (requires pandas for integration tests)
 pytest tests/ -v
+```
 
-# Run unit tests only
-pytest tests/unit/ -v
+### Build Mod
 
-# Run integration tests only
-pytest tests/integration/ -v
-
-# Run a single test file
-pytest tests/unit/test_mini_oni_environment.py -v
-
-# Run a specific test class or method
-pytest tests/unit/test_mini_oni_environment.py::TestMiniONIEnvironment::test_reset -v
-
-# Run with property-based test statistics
-pytest tests/ --hypothesis-show-statistics
-
-# Run with coverage
-pytest tests/ --cov=src --cov-report=html
+```bash
+cd mod/ONIBridge
+dotnet build
+# Output: bin/Debug/net471/ONIBridge.dll
 ```
 
 ### Code Quality
 
 ```bash
-# Format code
 black src/ tests/
-
-# Lint
 flake8 src/ tests/
-
-# Type check
 mypy src/
-
-# Sort imports
-isort src/ tests/
 ```
-
-### Installation
-
-```bash
-pip install -r requirements.txt
-npm install
-```
-
-### Running Examples
-
-```bash
-python examples/mini_oni_environment_demo.py
-python examples/objective_system_demo.py
-python examples/parse_save_example.py
-```
-
-## Architecture
-
-### Source Layout
-
-```
-src/
-├── data/           # Phase 1: Data extraction pipeline
-│   ├── parsers/    # ONI save file parsing (Python wrapping JS library)
-│   ├── preprocessors/  # GameState → StateTensor conversion
-│   └── datasets/   # Dataset building (NPZ + Parquet + JSON)
-├── environments/   # Phase 2: RL training environment
-│   └── mini_oni/   # Simplified ONI (64x64 max, 3 duplicants, 100 cycles)
-└── agents/         # Phase 5: Agent implementations
-    └── hierarchical/  # 3-level hierarchical planning agent
-```
-
-### Key Data Flow
-
-1. **Parse**: `oni_parser_bridge.js` (Node subprocess) → `ONISaveParser` → raw `GameState`
-2. **Preprocess**: `StatePreprocessor` → `StateTensor` (64x64x7 spatial array + 64-dim global features)
-3. **Dataset**: `DatasetBuilder` → NPZ/Parquet/JSON files for ML training
-4. **Environment**: `MiniONIEnvironment` (gym-like) → observation tensors + rewards
-5. **Agent**: `HierarchicalAgent` → 3-level decisions (every 20 cycles / 5 steps / continuous)
-
-### Parser Bridge
-
-The save file parser is a JavaScript library (`oni-save-parser`) called via Node.js subprocess. `oni_parser_bridge.js` is the JS bridge, and `src/data/parsers/oni_save_parser.py` is the Python wrapper. The parser falls back to mock data for corrupted saves.
-
-### Mini-ONI Environment
-
-Constraints enforced by design:
-- Map: max 64×64 tiles
-- Episode: max 100 cycles
-- Duplicants: 3 (starter setup)
-- Buildings: 10–15 essential types only
-
-Action space uses `ActionType` enum: `PlaceBuilding`, `Dig`, `Priority`, `DuplicantAssign`, `NoOp` — all position-based `(x, y)`.
-
-Objectives are three-tier:
-- Primary: Oxygen > 500g/tile
-- Secondary: Polluted water routing
-- Tertiary: Duplicant happiness > 50%
-
-### Hierarchical Agent (Phase 5)
-
-Three-level architecture with temporal abstraction:
-- **High-level planner**: 5 abstract goals, decides every 20 cycles
-- **Mid-level controller**: 15 subgoals, decides every 5 steps
-- **Low-level executor**: Primitive actions, continuous
-
-`HierarchicalCoordinator` manages inter-level communication. `HierarchicalIntrinsicRewards` provides bonus rewards (subgoal: +10, goal: +50, progress shaping: 5×progress).
-
-Configuration via `HierarchicalConfig` dataclass in `src/agents/hierarchical/config.py`.
 
 ## Code Conventions
 
 - **Type hints** required on all function signatures
-- **Dataclasses** for structured data (`GameState`, `StateTensor`, `Dataset`, etc.)
+- **Dataclasses** for structured data
 - **Google-style docstrings**
 - **Import order**: stdlib → third-party → project → relative
-- **Naming**: `snake_case` for files and functions
+- **Naming**: `snake_case` for Python, `PascalCase` for C#
 
-## Specifications
+## Specifications & Plans
 
-The `.kiro/` directory contains authoritative project specs:
-- `.kiro/steering/product.md` — product vision and success metrics
-- `.kiro/steering/tech.md` — technology decisions
-- `.kiro/specs/oni-ai/requirements.md` — detailed requirements
-- `.kiro/specs/oni-ai/design.md` — technical design
-- `.kiro/specs/oni-ai/tasks.md` — implementation roadmap with task IDs
-
-When implementing new tasks, reference the task ID (e.g., Task 5.1) in commit messages.
-
-## Training Hardware
-
-Target training hardware is the DGX Spark at `10.0.0.69` (accessible via `dgx1-ssh` MCP). Multi-GPU training is planned for Phases 3–5.
+- `docs/superpowers/specs/` — design specs for each feature
+- `docs/superpowers/plans/` — implementation plans
+- `docs/session-logs/` — notes from live agent sessions
+- `.kiro/specs/oni-ai/` — original RL pipeline specs (Phases 1–5, lower priority)
