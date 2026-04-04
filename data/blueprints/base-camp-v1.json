@@ -1,0 +1,70 @@
+{
+  "id": "base-camp-v1",
+  "name": "Basic Base Camp (Outhouse, Beds, Power, O2, Food)",
+  "goals": ["base_camp", "survival"],
+  "min_size": { "w": 10, "h": 6 },
+  "buildings": [
+    {
+      "type": "Outhouse",
+      "rel_x": 0, "rel_y": 0,
+      "requires": []
+    },
+    {
+      "type": "Bed",
+      "rel_x": 3, "rel_y": 0,
+      "requires": []
+    },
+    {
+      "type": "Bed",
+      "rel_x": 5, "rel_y": 0,
+      "requires": []
+    },
+    {
+      "type": "Bed",
+      "rel_x": 7, "rel_y": 0,
+      "requires": []
+    },
+    {
+      "type": "ManualGenerator",
+      "rel_x": 0, "rel_y": 3,
+      "requires": []
+    },
+    {
+      "type": "Battery",
+      "rel_x": 2, "rel_y": 3,
+      "requires": []
+    },
+    {
+      "type": "OxygenDiffuser",
+      "rel_x": 4, "rel_y": 3,
+      "requires": [{ "element": "Algae", "mass_kg": 50 }]
+    },
+    {
+      "type": "MicrobeMusher",
+      "rel_x": 6, "rel_y": 3,
+      "requires": [{ "element": "Dirt", "mass_kg": 50 }]
+    },
+    {
+      "type": "ResearchCenter",
+      "rel_x": 8, "rel_y": 3,
+      "requires": [{ "element": "Dirt", "mass_kg": 25 }]
+    }
+  ],
+  "dependencies": {
+    "OxygenDiffuser":  ["ManualGenerator", "Battery"],
+    "MicrobeMusher":   ["ManualGenerator", "Battery"],
+    "ResearchCenter":  ["ManualGenerator", "Battery"]
+  },
+  "dig_required": [
+    { "rel_x": 0, "rel_y": 0 }, { "rel_x": 1, "rel_y": 0 },
+    { "rel_x": 2, "rel_y": 0 }, { "rel_x": 3, "rel_y": 0 },
+    { "rel_x": 4, "rel_y": 0 }, { "rel_x": 5, "rel_y": 0 },
+    { "rel_x": 6, "rel_y": 0 }, { "rel_x": 7, "rel_y": 0 },
+    { "rel_x": 8, "rel_y": 0 }, { "rel_x": 9, "rel_y": 0 },
+    { "rel_x": 0, "rel_y": 3 }, { "rel_x": 1, "rel_y": 3 },
+    { "rel_x": 2, "rel_y": 3 }, { "rel_x": 3, "rel_y": 3 },
+    { "rel_x": 4, "rel_y": 3 }, { "rel_x": 5, "rel_y": 3 },
+    { "rel_x": 6, "rel_y": 3 }, { "rel_x": 7, "rel_y": 3 },
+    { "rel_x": 8, "rel_y": 3 }, { "rel_x": 9, "rel_y": 3 }
+  ]
+}

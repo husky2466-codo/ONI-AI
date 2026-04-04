@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace ONIBridge
@@ -30,6 +31,67 @@ namespace ONIBridge
                     case "no_op":
                         BridgeServer.Instance.SendAck(cmd.Action, true);
                         break;
+                    case "place_perimeter":
+                    {
+                        int x1 = cmd.GetInt("x1"), y1 = cmd.GetInt("y1");
+                        int x2 = cmd.GetInt("x2"), y2 = cmd.GetInt("y2");
+                        string goal = cmd.GetString("goal") ?? "unknown";
+                        bool ok = PerimeterManager.Place(x1, y1, x2, y2, goal);
+                        if (ok)
+                            BridgeServer.Instance.SendAck(cmd.Action, true);
+                        else
+                            BridgeServer.Instance.SendAck(cmd.Action, false, "perimeter_already_active");
+                        break;
+                    }
+                    case "abandon_perimeter":
+                    {
+                        PerimeterManager.Abandon();
+                        BridgeServer.Instance.SendAck(cmd.Action, true);
+                        break;
+                    }
+                    case "assign_research":
+                    {
+                        // DECOMPILE REQUIRED: Research.Instance API not yet verified.
+                        // Will implement once Assembly-CSharp.dll is decompiled to confirm
+                        // method names for tech lookup and active research assignment.
+                        BridgeServer.Instance.SendAck(cmd.Action, false, "decompile_required:assign_research");
+                        break;
+                    }
+                    case "enable_building":
+                    {
+                        // DECOMPILE REQUIRED: UserControlledToggle and Operational.Flag.Enabled
+                        // not yet verified via Assembly-CSharp.dll decompile.
+                        BridgeServer.Instance.SendAck(cmd.Action, false, "decompile_required:enable_building");
+                        break;
+                    }
+                    case "accept_print":
+                    {
+                        int offerIndex = cmd.GetInt("offer_index");
+                        if (offerIndex < 0 || offerIndex > 2)
+                        {
+                            BridgeServer.Instance.SendAck(cmd.Action, false, "offer_index_out_of_range");
+                            break;
+                        }
+                        var immigration = Immigration.Instance;
+                        if (immigration == null)
+                        {
+                            BridgeServer.Instance.SendAck(cmd.Action, false, "immigration_unavailable");
+                            break;
+                        }
+                        // Check if offer is available — field name to be verified via decompile
+                        bool hasOffer = false;
+                        try { hasOffer = immigration.ImmigrantsAvailable; }
+                        catch { }
+                        if (!hasOffer)
+                        {
+                            BridgeServer.Instance.SendAck(cmd.Action, false, "error_no_active_offer");
+                            break;
+                        }
+                        // DECOMPILE REQUIRED: Immigration.AcceptImmigrant method not yet verified.
+                        // Signal Python side to use xdotool fallback until confirmed.
+                        BridgeServer.Instance.SendAck(cmd.Action, false, "xdotool_required:accept_print_needs_decompile");
+                        break;
+                    }
                     case "set_speed":
                     {
                         int speed = cmd.Speed ?? 1;

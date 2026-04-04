@@ -33,11 +33,77 @@ namespace ONIBridge
         [JsonProperty("speed")]
         public int? Speed { get; set; }
 
+        // Perimeter bounding box
+        [JsonProperty("x1")]
+        public int X1 { get; set; }
+
+        [JsonProperty("y1")]
+        public int Y1 { get; set; }
+
+        [JsonProperty("x2")]
+        public int X2 { get; set; }
+
+        [JsonProperty("y2")]
+        public int Y2 { get; set; }
+
+        // Perimeter goal (e.g. "oxygen_production")
+        [JsonProperty("goal")]
+        public string? Goal { get; set; }
+
+        // Research assignment
+        [JsonProperty("tech_id")]
+        public string? TechId { get; set; }
+
+        // Building enable/disable toggle
+        [JsonProperty("enabled")]
+        public bool? Enabled { get; set; }
+
+        // Printing pod offer index (0, 1, or 2)
+        [JsonProperty("offer_index")]
+        public int? OfferIndex { get; set; }
+
         // Duplicant assignment
         [JsonProperty("duplicant_id")]
         public int DuplicantId { get; set; } = -1;
 
         [JsonProperty("skill")]
         public string? Skill { get; set; }
+
+        // Helper accessors used by ActionExecutor
+        public int GetInt(string field)
+        {
+            switch (field)
+            {
+                case "x1": return X1;
+                case "y1": return Y1;
+                case "x2": return X2;
+                case "y2": return Y2;
+                case "cell_x": return CellX;
+                case "cell_y": return CellY;
+                case "priority": return Priority;
+                case "offer_index": return OfferIndex ?? 0;
+                default: return 0;
+            }
+        }
+
+        public string? GetString(string field)
+        {
+            switch (field)
+            {
+                case "goal": return Goal;
+                case "tech_id": return TechId;
+                case "building_id": return BuildingId;
+                default: return null;
+            }
+        }
+
+        public bool GetBool(string field)
+        {
+            switch (field)
+            {
+                case "enabled": return Enabled ?? true;
+                default: return false;
+            }
+        }
     }
 }

@@ -26,14 +26,16 @@ import logging
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
 from src.agent.client import BridgeClient
 from src.agent.llm import GeminiAgent
-from src.agent.protocol import build_no_op
+from src.agent.perimeter import SpatialLedger
+from src.agent.protocol import build_abandon_perimeter, build_no_op
+from src.agent.reward import RewardCalculator, format_colony_health
 
 logging.basicConfig(
     level=logging.INFO,
@@ -46,6 +48,76 @@ _COG_X = 1893
 _COG_Y = 88
 _SSH_USER = "myroproductions"
 _SSH_KEY = str(Path.home() / ".ssh" / "id_ed25519")
+
+# ---------------------------------------------------------------------------
+# Training configuration
+# ---------------------------------------------------------------------------
+
+# Colony type policy: enforced as a hard constraint on accept_print actions.
+# "organic_only" | "bionic_only" | "mixed"
+COLONY_TYPE_POLICY = "organic_only"
+
+# Episode configuration
+EPISODE_MAX_CYCLE = 100          # end episode if cycle reaches this
+EPISODE_WIN_PHASE = 0            # current win condition phase
+EMPTY_COLONY_TICKS_THRESHOLD = 3 # consecutive empty-duplicants ticks = loss
+
+# Win condition thresholds by phase
+WIN_CONDITIONS: dict[int, dict] = {
+    0: {"survive_cycles": 3,  "require_no_deaths": True},   # Phase 0: smoke test
+    1: {"survive_cycles": 10, "require_no_deaths": False},   # Phase 1: cycle 10
+    2: {"survive_cycles": 25, "require_spom": True},         # Phase 2: SPOM active
+    3: {"survive_cycles": 50, "require_dupes": 5},           # Phase 3: 5+ dupes
+    4: {"survive_cycles": 100},                              # Phase 4: full run
+}
+
+# Canonical training seed
+CANONICAL_SEED = "v-sndst-c-1427943156-0-1a-j3et5"
+
+
+def _should_accept_offer(offer: dict) -> bool:
+    """Enforce COLONY_TYPE_POLICY before sending accept_print to game."""
+    if offer.get("type") == "care_package":
+        return True  # always accept resource packages
+    if offer.get("type") == "duplicant":
+        if COLONY_TYPE_POLICY == "organic_only":
+            return offer.get("subtype") == "organic"
+        if COLONY_TYPE_POLICY == "bionic_only":
+            return offer.get("subtype") == "bionic"
+    return True  # mixed: accept anything
+
+
+def _check_win_condition(state: dict, episode_record: "Any") -> "str | None":
+    """
+    Returns end condition string if episode should end, None to continue.
+    End conditions: "win", "loss", "cycle_limit"
+    """
+    phase = EPISODE_WIN_PHASE
+    win_cond = WIN_CONDITIONS.get(phase, {})
+    cycle = state.get("cycle", 0)
+    dupes = state.get("duplicants", [])
+    buildings = {b["type"] for b in state.get("buildings", [])}
+
+    # Loss: check is done in run() by tracking consecutive empty ticks
+
+    # Win: check phase conditions
+    survive_cycles = win_cond.get("survive_cycles", 10)
+    if cycle >= survive_cycles:
+        if win_cond.get("require_no_deaths") and episode_record.total_deaths > 0:
+            return None  # need no deaths — keep going until end or loss
+        if win_cond.get("require_spom"):
+            if "Electrolyzer" not in buildings or "HydrogenGenerator" not in buildings:
+                return None  # SPOM not active yet
+        if win_cond.get("require_dupes", 0) > 0:
+            if len(dupes) < win_cond["require_dupes"]:
+                return None  # not enough dupes yet
+        return "win"
+
+    # Neutral: hit max cycle
+    if cycle >= EPISODE_MAX_CYCLE:
+        return "cycle_limit"
+
+    return None
 
 
 async def open_settings_via_xdotool(host: str) -> bool:
@@ -90,6 +162,7 @@ class RelayManager:
         self._manual_actions: asyncio.Queue[dict] = asyncio.Queue()
         self.log: list[str] = []
         self.last_state: dict = {}
+        self.pending_action: dict | None = None  # last action sent to game, cleared each cycle
 
     async def connect(self, ws: WebSocket) -> None:
         await ws.accept()
@@ -165,11 +238,16 @@ _DEDUP_TTL = 5  # suppress identical AI actions for this many ticks
 async def run(host: str, port: int, api_key: str, episode_log: Path | None) -> None:
     client = BridgeClient(host=host, port=port)
     agent = GeminiAgent(api_key=api_key)
+    ledger = SpatialLedger()
+    reward_calc = RewardCalculator(ledger=ledger)
 
     log_entries: list[dict] = []
     last_ai_action: dict | None = None
     last_ai_action_tick: int = 0
     last_cycle: int = 0
+    empty_colony_ticks: int = 0  # consecutive ticks with no dupes
+    episode_end_condition: str | None = None
+    episode_id = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
 
     logger.info("Connecting to ONI bridge at %s:%d ...", host, port)
     await client.connect()
@@ -181,6 +259,37 @@ async def run(host: str, port: int, api_key: str, episode_log: Path | None) -> N
         cycle = state.cycle
         resources = state.data.get("resources", {})
         alerts = state.data.get("alerts", [])
+
+        # Update spatial ledger each tick
+        ledger.on_state(state.data)
+
+        # Auto-complete: perimeter hit 100% — send abandon to clean up mod side
+        if ledger.autocomplete_pending:
+            ledger.clear_autocomplete()
+            logger.info("Perimeter auto-complete — sending abandon_perimeter")
+            await client.send_action(build_abandon_perimeter())
+            relay.pending_action = build_abandon_perimeter()
+
+        # Reward calculation
+        tick_reward = reward_calc.tick(state.data)
+        episode_reward = reward_calc.episode_total
+        obligations = reward_calc.open_obligations()
+
+        # Episode lifecycle: empty colony check
+        if not state.data.get("duplicants"):
+            empty_colony_ticks += 1
+        else:
+            empty_colony_ticks = 0
+
+        if empty_colony_ticks >= EMPTY_COLONY_TICKS_THRESHOLD:
+            episode_end_condition = "loss"
+            logger.warning("All dupes dead for %d ticks — episode LOSS", empty_colony_ticks)
+
+        # Win condition check
+        if episode_end_condition is None:
+            episode_end_condition = _check_win_condition(
+                state.data, reward_calc.episode_record
+            )
 
         # Update relay state and broadcast to dashboard subscribers
         relay.last_state = state.data
@@ -203,9 +312,10 @@ async def run(host: str, port: int, api_key: str, episode_log: Path | None) -> N
             for a in alerts:
                 logger.warning("  ALERT: %s", a)
 
-        # Reset dedup on new cycle so AI can issue fresh commands each cycle
+        # Reset dedup and pending action on new cycle
         if cycle != last_cycle:
             last_ai_action = None
+            relay.pending_action = None
             last_cycle = cycle
 
         # Check for a manual action from the dashboard first; fall back to AI
@@ -215,7 +325,15 @@ async def run(host: str, port: int, api_key: str, episode_log: Path | None) -> N
             last_ai_action = None  # reset dedup on manual override
             logger.info("  -> manual action from dashboard: %s", action)
         else:
-            candidate = agent.decide(state.data)
+            colony_health = format_colony_health(
+                state.data, tick_reward, episode_reward, obligations
+            )
+            candidate = agent.decide(
+                state.data,
+                pending_action=relay.pending_action,
+                ledger_context=ledger.format_context(),
+                colony_health=colony_health,
+            )
             # Suppress repeated identical non-no_op AI actions for _DEDUP_TTL ticks
             if (candidate == last_ai_action
                     and candidate.get("action") != "no_op"
@@ -230,6 +348,7 @@ async def run(host: str, port: int, api_key: str, episode_log: Path | None) -> N
             logger.info("  -> AI action: %s", action)
 
         await client.send_action(action)
+        relay.pending_action = action
 
         # Read ACK (non-blocking peek — ACK arrives on the same TCP stream,
         # but state_stream() only yields state messages.  We handle the raw
@@ -246,19 +365,59 @@ async def run(host: str, port: int, api_key: str, episode_log: Path | None) -> N
 
         if episode_log is not None:
             log_entries.append({
+                "episode_id": episode_id,
                 "tick": tick,
                 "cycle": cycle,
                 "state": state.data,
                 "action": action,
+                "reward": tick_reward,
+                "ledger_snapshot": ledger.to_dict(),
             })
 
     logger.info("Bridge closed after %d ticks.", tick)
 
+    # Compute final outcome reward
+    outcome_reward = reward_calc.episode_end()
+    ep = reward_calc.episode_record
+
+    logger.info(
+        "Episode %s done: end=%s ticks=%d cycles=%d deaths=%d reward=%.1f outcome=%.1f",
+        episode_id,
+        episode_end_condition or "disconnect",
+        tick,
+        ep.final_cycle,
+        ep.total_deaths,
+        ep.total_reward,
+        outcome_reward,
+    )
+
     if episode_log is not None and log_entries:
+        # Default path: data/episodes/YYYYMMDD-HHMMSS-<seed>.jsonl
+        if episode_log == Path("auto"):
+            episode_log = Path("data/episodes") / f"{episode_id}-{CANONICAL_SEED[:12]}.jsonl"
+
         episode_log.parent.mkdir(parents=True, exist_ok=True)
+
+        # Write JSONL: one JSON object per line
         with open(episode_log, "w") as f:
-            json.dump(log_entries, f, indent=2)
-        logger.info("Episode log saved to %s", episode_log)
+            # First line: episode summary
+            summary = {
+                "episode_id": episode_id,
+                "seed": CANONICAL_SEED,
+                "end_condition": episode_end_condition or "disconnect",
+                "start_cycle": ep.start_cycle,
+                "final_cycle": ep.final_cycle,
+                "total_ticks": tick,
+                "total_deaths": ep.total_deaths,
+                "total_reward": ep.total_reward,
+                "outcome_reward": outcome_reward,
+                "milestones": ep.milestones,
+                "agent_stats": agent.stats,
+            }
+            f.write(json.dumps(summary) + "\n")
+            for entry in log_entries:
+                f.write(json.dumps(entry) + "\n")
+        logger.info("Episode log saved to %s (%d ticks)", episode_log, len(log_entries))
 
 
 def main() -> None:
@@ -270,13 +429,15 @@ def main() -> None:
     parser.add_argument("--api-key", default=os.environ.get("GOOGLE_API_KEY", ""),
                         help="Google API key (or set GOOGLE_API_KEY env var)")
     parser.add_argument("--log-episode", default=None,
-                        help="Path to write episode JSON log (optional)")
+                        help="Path to write episode JSONL log, or 'auto' for data/episodes/ auto-naming")
     args = parser.parse_args()
 
     if not args.api_key:
         parser.error("--api-key is required (or set GOOGLE_API_KEY env var)")
 
     episode_log = Path(args.log_episode) if args.log_episode else None
+    if args.log_episode == "auto":
+        episode_log = Path("auto")  # sentinel value; actual path set inside run()
 
     global _game_host
     _game_host = args.host

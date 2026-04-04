@@ -68,3 +68,9 @@ docs/signal-*
 # ONI wiki database (built locally via scripts/build_wiki_db.py)
 data/wiki.db
 data/*.db
+
+# Episode training logs (generated at runtime, can be large)
+data/episodes/
+
+# Seed knowledge files (created from human playthroughs)
+data/seeds/

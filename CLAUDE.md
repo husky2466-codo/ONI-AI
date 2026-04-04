@@ -128,6 +128,27 @@ python3 scripts/build_wiki_db.py
 {"type": "ui_action", "action": "open_settings"}
 ```
 
+## C# Action Implementation Rule: Harmony-Direct vs. UI-Automation
+
+Every action in `ActionExecutor.cs` must be implemented via one of two mechanisms:
+
+**Harmony-direct (preferred):** The action calls ONI's internal C# API directly — same code
+path the UI triggers under the hood. Reliable, fast, survives UI changes. All actions should
+use this unless the mechanism below applies.
+
+**UI-automation (xdotool):** The action has no backing C# API — the button IS the mechanism.
+In this case, the mod returns `{ "type": "ui_required", ... }` to the Python runner, which
+uses `xdotool` SSH to click the appropriate UI element on the game host.
+
+**Decision rule:** If a human clicking a button calls a C# method, Harmony can call that
+method directly. If the button IS the only mechanism (pure UI), use xdotool.
+
+Currently xdotool actions: `set_speed` (SpeedControlScreen), `open_settings`, potentially
+`accept_print` (pending decompile verification of `Immigration.Instance`).
+
+**Before implementing a new action:** Check `Assembly-CSharp.dll` via ILSpy/dnSpy to
+confirm the internal API exists. Note findings in the relevant spec's decompile checklist.
+
 ## Commands
 
 ### Testing
