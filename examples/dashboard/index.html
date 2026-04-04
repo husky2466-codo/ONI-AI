@@ -262,7 +262,11 @@ function sendUiAction(action) {
 }
 
 function setSpeed(speed) {
-  sendAction('set_speed');
+  if (ws && ws.readyState === 1) {
+    ws.send(JSON.stringify({ type: 'action', action: 'set_speed', speed: speed }));
+    sessionStats.actions++;
+    addLogEntry('action', 'set_speed ' + speed + 'x');
+  }
   [0,1,2,3].forEach(function(s) {
     var el = document.getElementById('spd-' + s);
     if (el) el.classList.toggle('active', s === speed);
@@ -299,8 +303,8 @@ var TILE_COLORS = {
   'Granite': '#7a7a8a',
   'Algae': '#3fb950',
   'Water': '#1f6feb',
-  'Oxygen': '#58a6ff22',
-  'CarbonDioxide': '#f0883e33',
+  'Oxygen': '#58a6ff',
+  'CarbonDioxide': '#f0883e',
   'Polluted Water': '#5a4a1a',
   'Polluted Oxygen': '#8b8b1a',
 };
@@ -367,7 +371,7 @@ function renderColony() {
     }
     ctx.putImageData(img, 0, 0);
     document.getElementById('col-tile-pos').textContent =
-      'window: (' + tiles.x + ',' + tiles.y + ') 64×64';
+      'window: (' + tiles.x + ',' + tiles.y + ') ' + w + '×' + h;
   }
 }
 function renderDuplicants() {}
