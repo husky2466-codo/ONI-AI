@@ -342,7 +342,7 @@ save_files/
 
 **Creating the canonical training save:**
 
-1. Start a fresh game on the canonical seed: `v-sndst-c-1427943156-0-1a-j3et5`
+1. Start a fresh game on the canonical seed: `V-SNDST-C-1644640403-0-0-0`
 2. When naming the colony, use exactly: **`training-start`**
    (this makes the path predictable: `save_files/training-start/training-start.sav`)
 3. Let it reach cycle 1 with dupes spawned — do not issue any commands

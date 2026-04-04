@@ -1,0 +1,40 @@
+{
+  "seed": "V-SNDST-C-1644640403-0-0-0",
+  "asteroid": "VanillaSandstoneDefault",
+  "cluster": "SandstoneDefault",
+  "dlc": "SpacedOut",
+  "game_version": 677228,
+  "world_traits": [],
+  "verified": true,
+  "source": "MapsNotIncluded.org community database",
+  "notes": "Canonical training seed. Triple cool steam + triple natural gas provides maximum redundancy for AI training. No world traits = clean, deterministic layout.",
+
+  "spawn_point": { "x": 120, "y": 200, "note": "Approximate — confirm on first play session" },
+
+  "geysers": [
+    { "type": "CoolSteamVent",          "count": 3, "notes": "Primary oxygen source" },
+    { "type": "NaturalGasGeyser",       "count": 3, "notes": "Primary power source" },
+    { "type": "HotSteamVent",           "count": 2, "notes": "Secondary water/steam" },
+    { "type": "PollutedWaterVent",      "count": 2, "notes": "Sanitation + water" },
+    { "type": "WaterGeyser",            "count": 1, "notes": "Fresh water" },
+    { "type": "HotSaltWaterGeyser",     "count": 1, "notes": "Additional water, needs desalination" },
+    { "type": "OilReservoir",           "count": 3, "notes": "Late-game petroleum" },
+    { "type": "AluminiumVolcano",       "count": 1, "notes": "Metal" },
+    { "type": "ChlorineGasVent",        "count": 2, "notes": "Containable, low priority" },
+    { "type": "HotPollutedOxygenVent",  "count": 1, "notes": "Containable, low priority" },
+    { "type": "Volcano",                "count": 1, "notes": "Wall off and ignore" }
+  ],
+
+  "known_locations": {
+    "note": "Populate after first manual play session using debug reveal (Ctrl+F8)",
+    "geysers": [],
+    "biome_warnings": [],
+    "early_resources": []
+  },
+
+  "training_notes": {
+    "phase_0_viability": "Excellent — triple CSV/NGG means Phase 0 smoke test is never resource-limited",
+    "phase_1_viability": "Excellent — all critical geyser types present, no world trait complications",
+    "ai_advantage": "Redundant resources reduce catastrophic failure from poor early decisions, allowing training signal to reflect strategy quality rather than luck"
+  }
+}

@@ -15,16 +15,40 @@ colony type decisions, episode lifecycle, and the reasoning behind each choice.
 ## Canonical Training Seed
 
 ```
-v-sndst-c-1427943156-0-1a-j3et5
+V-SNDST-C-1644640403-0-0-0
 ```
 
 **Breakdown:**
-- `sndst` — Sandstone starting asteroid (Terra equivalent). Temperate biome, standard resources,
-  most well-documented starting asteroid in the community. Best choice for initial training.
-- `c` — Cluster configuration (Spaced Out DLC)
-- `1427943156` — Deterministic seed
-- `1a` — DLC/layout variant
-- `j3et5` — Additional cluster configuration hash
+- `V` — Version prefix (Spaced Out DLC coordinate format)
+- `SNDST` — Sandstone/Terra starting asteroid (VanillaSandstoneDefault, 240×380 tiles)
+- `C` — Classic cluster configuration (Spaced Out DLC)
+- `1644640403` — Deterministic seed integer
+- `0-0-0` — No world traits on starting asteroid (clean, vanilla layout)
+
+**Verified geyser composition on starting asteroid** (sourced from MapsNotIncluded.org community database, game version 677228):
+
+| Geyser | Count | Significance |
+|--------|-------|-------------|
+| Cool Steam Vent | 3 | Triple oxygen source — exceptional redundancy |
+| Natural Gas Geyser | 3 | Triple power source — exceptional redundancy |
+| Hot Steam Vent | 2 | Secondary water/steam |
+| Polluted Water Vent | 2 | Sanitation + water |
+| Water Geyser | 1 | Fresh water |
+| Hot Salt Water Geyser | 1 | Additional water |
+| Oil Reservoir | 3 | Late-game petroleum |
+| Aluminium Volcano | 1 | Metal |
+| Chlorine Gas Vent | 2 | Containable |
+| Hot Polluted O2 Vent | 1 | Containable |
+| Volcano | 1 | Wall off |
+
+**Total: 20 geysers.** All 5 critical geyser types present. Triple cool steam + triple natural gas
+means the AI cannot fail from oxygen or power starvation alone — sufficient redundancy for the
+agent to learn colony management without catastrophic resource failures dominating every episode.
+
+**Previous seed** (`v-sndst-c-1427943156-0-1a-j3et5`) was undocumented — geyser composition
+unknown. Replaced with this verified seed.
+
+**To load:** New Game → Spaced Out → Terra Cluster → enter `V-SNDST-C-1644640403-0-0-0`
 
 **Why a fixed seed matters:**
 - Identical map layout every run: same geyser locations, biome boundaries, resource deposits
@@ -209,7 +233,7 @@ these tuples are converted into `(state, action, reward)` triples for RL trainin
 
 | Parameter | Value | Notes |
 |-----------|-------|-------|
-| Canonical seed | `v-sndst-c-1427943156-0-1a-j3et5` | Fixed for Phase 1 training |
+| Canonical seed | `V-SNDST-C-1644640403-0-0-0` | Fixed for Phase 1 training, verified geyser composition |
 | Colony type (Phase 1) | Organic only | Accept organic dupes + care packages |
 | Colony type (Phase 2) | Bionic only | Separate training run, compare performance |
 | Max dupes (Phase 1) | 5 | Constrain complexity during initial training |
