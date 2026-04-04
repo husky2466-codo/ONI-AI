@@ -29,6 +29,10 @@ namespace ONIBridge
         [JsonProperty("priority")]
         public int Priority { get; set; } = 5;
 
+        // Game speed: 0=paused, 1=normal, 2=fast, 3=ultra
+        [JsonProperty("speed")]
+        public int? Speed { get; set; }
+
         // Duplicant assignment
         [JsonProperty("duplicant_id")]
         public int DuplicantId { get; set; } = -1;
