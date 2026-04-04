@@ -59,15 +59,33 @@ def _load_profiles() -> dict:
         with open(_PROFILES_PATH) as f:
             return json.load(f)
     default = {
-        "active_id": "default",
-        "profiles": [{
-            "id": "default",
-            "name": "Default",
-            "endpoint_url": f"http://{GAME_HOST}:8000/v1",
-            "model": "Qwen/Qwen2.5-72B-Instruct-AWQ",
-            "api_key": "",
-            "vision_enabled": False,
-        }]
+        "active_id": "dgx-a",
+        "profiles": [
+            {
+                "id": "dgx-a",
+                "name": "DGX-A (Qwen2.5-72B)",
+                "endpoint_url": "http://10.0.0.69:8000/v1",
+                "model": "Qwen/Qwen2.5-72B-Instruct-AWQ",
+                "api_key": "",
+                "vision_enabled": False,
+            },
+            {
+                "id": "dgx-b",
+                "name": "DGX-B (Qwen2.5-72B)",
+                "endpoint_url": "http://192.168.3.20:8000/v1",
+                "model": "Qwen/Qwen2.5-72B-Instruct-AWQ",
+                "api_key": "",
+                "vision_enabled": False,
+            },
+            {
+                "id": "gemini",
+                "name": "Gemini 2.5 Flash",
+                "endpoint_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
+                "model": "gemini-2.5-flash",
+                "api_key": "",
+                "vision_enabled": False,
+            },
+        ]
     }
     _save_profiles(default)
     return default
