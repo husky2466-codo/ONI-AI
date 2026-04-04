@@ -8,7 +8,7 @@ scope: all inference nodes in the ONI-AI infrastructure
 -->
 
 ```yaml
-last_updated: "2026-04-04"
+last_updated: "2026-04-04T22:00"
 maintainer: "manual — update when serving state changes"
 nodes:
   - id: dgx-a
