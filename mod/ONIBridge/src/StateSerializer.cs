@@ -254,6 +254,23 @@ namespace ONIBridge
             int w = ex - wx + 1;
             int h = ey - wy + 1;
 
+            // Cap window to 64×64 to prevent unbounded payload growth on large colonies
+            const int MAX_WINDOW = 64;
+            if (w > MAX_WINDOW)
+            {
+                int midX = wx + w / 2;
+                wx = midX - MAX_WINDOW / 2;
+                ex = wx + MAX_WINDOW - 1;
+                w = MAX_WINDOW;
+            }
+            if (h > MAX_WINDOW)
+            {
+                int midY = wy + h / 2;
+                wy = midY - MAX_WINDOW / 2;
+                ey = wy + MAX_WINDOW - 1;
+                h = MAX_WINDOW;
+            }
+
             if (w <= 0 || h <= 0)
             {
                 Debug.LogWarning($"[ONIBridge] GetTiles: degenerate window w={w} h={h}, skipping");

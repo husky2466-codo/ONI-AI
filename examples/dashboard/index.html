@@ -334,7 +334,7 @@ button.sm:disabled { opacity: 0.4; cursor: default; }
   <button class="tb-action"        data-drawer="dig"      title="Dig">      <span class="tb-icon">⛏️</span><span class="tb-label">Dig</span></button>
   <button class="tb-action danger" data-drawer="cancel"   title="Cancel">   <span class="tb-icon">✖️</span><span class="tb-label">Cancel</span></button>
   <button class="tb-action"        data-drawer="priority" title="Priority">  <span class="tb-icon">📌</span><span class="tb-label">Pri</span></button>
-  <button class="tb-action"        id="btn-noop"                             ><span class="tb-icon">⏸️</span><span class="tb-label">No-op</span></button>
+  <button class="tb-action"        id="btn-noop"                             ><span class="tb-icon">⏭️</span><span class="tb-label">No-op</span></button>
 
   <!-- Spacer pushes speed controls to far right -->
   <div style="flex:1"></div>
@@ -350,13 +350,6 @@ button.sm:disabled { opacity: 0.4; cursor: default; }
     <button class="tb-speed-btn" id="spd-3" onclick="setSpeed(3)" title="Ultra (4x)">4x</button>
   </div>
 
-  <div class="tb-sep"></div>
-
-  <!-- Pause button -->
-  <button class="tb-btn" onclick="setSpeed(0)" title="Pause game">
-    <span class="tb-icon">⏸️</span>
-    <span class="tb-label">Pause</span>
-  </button>
 </div>
 
 <script>
@@ -602,7 +595,7 @@ function buildBuildingDrawer(list, cat) {
       var id = document.createElement('div'); id.className = 'di-id';   id.textContent = item.id;   inf.appendChild(id);
       row.appendChild(inf);
       var btn = document.createElement('button'); btn.className = 'di-btn'; btn.textContent = 'Place';
-      (function(bid){ btn.addEventListener('click', function(e){ e.stopPropagation(); var c=getCoords(); send({action:'place_building',building_id:bid,x:c.x,y:c.y}); }); })(item.id);
+      (function(bid){ btn.addEventListener('click', function(e){ e.stopPropagation(); var c=getCoords(); send({action:'place_building',building_id:bid,cell_x:c.x,cell_y:c.y}); }); })(item.id);
       row.appendChild(btn); list.appendChild(row);
     });
   });
@@ -612,19 +605,19 @@ function buildActionDrawer(list, key) {
   if (key === 'dig') {
     row.innerHTML = '<span class="di-icon">⛏️</span><span class="di-lbl">Dig at X/Y</span>';
     var b = document.createElement('button'); b.className = 'di-btn'; b.textContent = 'Dig';
-    b.addEventListener('click', function(){ var c=getCoords(); send({action:'dig',x:c.x,y:c.y}); });
+    b.addEventListener('click', function(){ var c=getCoords(); send({action:'dig',cell_x:c.x,cell_y:c.y}); });
     row.appendChild(b);
   } else if (key === 'cancel') {
     row.innerHTML = '<span class="di-icon">✖️</span><span class="di-lbl">Cancel dig at X/Y</span>';
     var b2 = document.createElement('button'); b2.className = 'di-btn'; b2.style.color='#f85149'; b2.textContent = 'Cancel';
-    b2.addEventListener('click', function(){ var c=getCoords(); send({action:'cancel_dig',x:c.x,y:c.y}); });
+    b2.addEventListener('click', function(){ var c=getCoords(); send({action:'cancel_dig',cell_x:c.x,cell_y:c.y}); });
     row.appendChild(b2);
   } else if (key === 'priority') {
     row.innerHTML = '<span class="di-lbl">Priority</span>';
     var inp = document.createElement('input'); inp.type='number'; inp.id='drawer-priority'; inp.min=1; inp.max=9; inp.value=7;
     inp.style.cssText='width:44px;background:#21262d;border:1px solid #58a6ff;color:#e6edf3;padding:2px 4px;border-radius:3px;font-family:inherit;font-size:11px;';
     var b3 = document.createElement('button'); b3.className='di-btn'; b3.textContent='Set';
-    b3.addEventListener('click', function(){ var c=getCoords(); var p=parseInt(document.getElementById('drawer-priority').value,10)||7; send({action:'set_priority',x:c.x,y:c.y,priority:p}); });
+    b3.addEventListener('click', function(){ var c=getCoords(); var p=parseInt(document.getElementById('drawer-priority').value,10)||7; send({action:'set_priority',cell_x:c.x,cell_y:c.y,priority:p}); });
     row.appendChild(inp); row.appendChild(b3);
   }
   list.appendChild(row);

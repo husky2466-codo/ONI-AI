@@ -399,6 +399,9 @@ class GeminiAgent:
                     cell_x=int(obj["cell_x"]),
                     cell_y=int(obj["cell_y"]),
                     priority=max(1, min(9, int(obj.get("priority", 5)))))
+            elif action == "set_speed":
+                return build_action(action,
+                    speed=max(0, min(3, int(obj.get("speed", 1)))))
         except (KeyError, ValueError, TypeError) as e:
             logger.warning("Action param error: %s — raw: %r", e, raw)
             return build_no_op()
