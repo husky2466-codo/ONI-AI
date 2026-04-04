@@ -980,7 +980,7 @@ function updateRunnerBadge(data) {
 }
 
 function fmtUptime(sec) {
-  var h = Math.floor(sec / 3600); var m = Math.floor((sec % 3600) / 60); var s = sec % 60;
+  var h = Math.floor(sec / 3600); var m = Math.floor((sec % 3600) / 60); var s = Math.floor(sec % 60);
   return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
 }
 
@@ -1061,8 +1061,13 @@ function cfgAddProfile() {
     method: 'POST', headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({ name: 'New Profile', endpoint_url: '', model: '', api_key: '', vision_enabled: false })
   }).then(function(r) { return r.json(); }).then(function(d) {
-    loadConfig();
-    setTimeout(function() { selectProfile(d.id); }, 200);
+    var newId = d.id;
+    fetch('/config/profiles').then(function(r2) { return r2.json(); }).then(function(data) {
+      _cfgProfiles = data.profiles || [];
+      _cfgActiveId = data.active_id;
+      renderProfileList();
+      selectProfile(newId);
+    });
   });
 }
 
