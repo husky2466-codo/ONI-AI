@@ -105,6 +105,46 @@ def _topological_sort(steps: list[dict], dependencies: dict[str, list[str]]) -> 
 # TaskBoard builder
 # ---------------------------------------------------------------------------
 
+def _cells_needing_dig(blueprint: dict, state: dict, bounds: dict) -> list[tuple[int, int]]:
+    """
+    Return absolute (x, y) coords from dig_required that still have solid mass.
+    Uses the tile window in state to check — cells not in the window are assumed
+    uncleared (conservatively require digging).
+    """
+    dig_required = blueprint.get("dig_required", [])
+    if not dig_required:
+        return []
+
+    origin_x = bounds["x1"]
+    origin_y = bounds["y1"]
+
+    # Build a lookup from (cx, cy) -> mass from the tile window
+    tiles = state.get("tiles", {})
+    tile_data = tiles.get("data", [])
+    tw_x = tiles.get("x", 0)
+    tw_y = tiles.get("y", 0)
+    tw_w = tiles.get("w", 0)
+    tile_mass: dict[tuple[int, int], float] = {}
+    for idx, cell in enumerate(tile_data):
+        col = idx % tw_w if tw_w else 0
+        row = idx // tw_w if tw_w else 0
+        cx = tw_x + col
+        cy = tw_y + row
+        mass = cell[1] if isinstance(cell, (list, tuple)) and len(cell) >= 2 else 0.0
+        tile_mass[(cx, cy)] = float(mass)
+
+    needs_dig = []
+    for entry in dig_required:
+        ax = origin_x + entry["rel_x"]
+        ay = origin_y + entry["rel_y"]
+        mass = tile_mass.get((ax, ay), -1.0)
+        # mass > 0 means solid ground; -1 means not in tile window (assume uncleared)
+        if mass != 0.0:
+            needs_dig.append((ax, ay))
+
+    return needs_dig
+
+
 def _build_task_board(
     blueprint: dict,
     state: dict,
@@ -129,10 +169,15 @@ def _build_task_board(
             remaining.append({**step, "abs_x": abs_x, "abs_y": abs_y})
 
     ordered = _topological_sort(remaining, blueprint.get("dependencies", {}))
-    next_tasks = [
+
+    # Dig tasks come before build tasks — show up to 3 pending digs first
+    dig_cells = _cells_needing_dig(blueprint, state, bounds)
+    dig_tasks = [f"Dig ({cx},{cy})" for cx, cy in dig_cells[:3]]
+    build_tasks = [
         f"Place {s['type']} at ({s['abs_x']},{s['abs_y']})"
-        for s in ordered[:5]
+        for s in ordered[: max(0, 5 - len(dig_tasks))]
     ]
+    next_tasks = dig_tasks + build_tasks
 
     pct = 100.0 * completed / len(steps) if steps else 0.0
     prerequisites = PrerequisiteResolver().resolve(ordered[:3], storage)
