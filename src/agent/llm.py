@@ -161,19 +161,27 @@ ManualGenerator → Wire → Battery → Wire → (OxygenDiffuser, MicrobeMusher
 7. ResearchCenter, start Sanitation research
 
 ## Spatial Perimeter System
-Use perimeters to declare a focused construction zone. One active perimeter at a time.
-  place_perimeter: declare a build zone with a goal. The task board will tell you what to build.
-  abandon_perimeter: cancel current perimeter (auto-abandon happens at 100% completion).
+Declare focused build zones. Up to 5 concurrent zones, each with its own task board.
 
-Goals and MINIMUM sizes (x2-x1 >= w, y2-y1 >= h):
-  "survival" / "base_camp": min 10 wide x 6 tall
-  "oxygen_production":       min 6 wide x 4 tall
+place_perimeter: declare a new build zone.
+  Required fields: id (generate a random 8-char hex string), x1, y1, x2, y2, goal, priority (1-9, 9=highest)
+  COORDINATE CONVENTION: x2/y2 are EXCLUSIVE. Interior cells: x1..x2-1, y1..y2-1. Width = x2-x1.
+  Example: 12-wide zone at x=115 → x1=115, x2=127 (NOT 126). x2-x1 must equal the width.
 
-CRITICAL: If the Spatial Ledger says "no blueprint matched" — abandon the perimeter immediately
-and place a new one at the correct minimum size.
+abandon_perimeter: cancel a specific zone.
+  Required fields: id (the zone id to cancel)
 
-When a perimeter is active with a loaded task board, follow it exactly — dig listed cells first,
-then place buildings in order. Do NOT place_perimeter if one is already active.
+Minimum zone sizes (x2-x1 >= w, y2-y1 >= h):
+  "survival" / "base_camp": 12 wide x 8 tall → x2-x1=12, y2-y1=8
+  "oxygen_production":       8 wide x 6 tall  → x2-x1=8,  y2-y1=6
+
+CRITICAL: If prompt shows "! ZONE REJECTED: ..." — read the reason and fix before retrying.
+  "no blueprint matched" → increase zone dimensions to meet minimum size above.
+  "overlaps existing zone" → move zone to a non-overlapping area.
+  "zone cap reached" → abandon a completed or low-priority zone first.
+
+When a zone has an active task board: follow it exactly — dig listed cells first, then place
+buildings in listed order. Higher priority zones are shown first in the Spatial Ledger.
 
 ## Response format
 Output ONLY a single JSON object — no explanation, no markdown, no code fences:
@@ -182,8 +190,8 @@ Output ONLY a single JSON object — no explanation, no markdown, no code fences
   {"type": "action", "action": "cancel_dig", "cell_x": <int>, "cell_y": <int>}
   {"type": "action", "action": "place_building", "building_id": "<id>", "cell_x": <int>, "cell_y": <int>}
   {"type": "action", "action": "set_priority", "cell_x": <int>, "cell_y": <int>, "priority": <1-9>}
-  {"type": "action", "action": "place_perimeter", "x1": <int>, "y1": <int>, "x2": <int>, "y2": <int>, "goal": "<goal>"}
-  {"type": "action", "action": "abandon_perimeter"}
+  {"type": "action", "action": "place_perimeter", "id": "<8-char hex>", "x1": <int>, "y1": <int>, "x2": <int>, "y2": <int>, "goal": "<goal>", "priority": <1-9>}
+  {"type": "action", "action": "abandon_perimeter", "id": "<zone id>"}
   {"type": "action", "action": "assign_research", "tech_id": "<id>"}
   {"type": "action", "action": "enable_building", "cell_x": <int>, "cell_y": <int>, "enabled": <bool>}
   {"type": "action", "action": "accept_print", "offer_index": <0|1|2>}

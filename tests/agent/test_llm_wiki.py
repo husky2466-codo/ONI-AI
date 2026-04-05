@@ -138,6 +138,20 @@ def test_system_prompt_contains_starting_buildings_table():
     assert "pre-spawned" in SYSTEM_PROMPT
 
 
+def test_system_prompt_multi_zone_perimeter_section():
+    """SYSTEM_PROMPT must document multi-zone, id, priority, exclusive bounds, and correct min sizes."""
+    from src.agent.llm import SYSTEM_PROMPT
+    assert "Up to 5" in SYSTEM_PROMPT or "5 concurrent" in SYSTEM_PROMPT
+    assert "priority" in SYSTEM_PROMPT
+    assert "id" in SYSTEM_PROMPT
+    assert "EXCLUSIVE" in SYSTEM_PROMPT
+    # Updated min sizes
+    assert "12 wide" in SYSTEM_PROMPT or "x2-x1=12" in SYSTEM_PROMPT
+    assert "8 tall" in SYSTEM_PROMPT or "y2-y1=8" in SYSTEM_PROMPT
+    # No longer "one active perimeter at a time"
+    assert "One active perimeter at a time" not in SYSTEM_PROMPT
+
+
 def test_format_state_spawned_buildings_tagged():
     """Telepad and RationBox get [SPAWNED] tag; player-built Bed does not."""
     state = _make_state(buildings=[
