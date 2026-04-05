@@ -1,8 +1,9 @@
 # Policy & Training Pipeline Spec
 
-**Date:** 2026-04-04  
+**Date:** 2026-04-04 (revised 2026-04-05)  
 **Status:** Draft  
-**Depends on:** training-configuration, reward-function, game-reload-automation, extended-game-state-schema
+**Depends on:** training-configuration, reward-function, game-reload-automation, extended-game-state-schema  
+**See also:** `2026-04-05-nemo-gym-integration.md`, `2026-04-05-observability.md`
 
 ---
 
@@ -11,32 +12,39 @@
 This spec defines how the ONI-AI agent moves from cloud-hosted inference (Gemini API) to a
 fully on-prem training and inference loop running across two DGX Spark nodes. It covers the
 model backend abstraction, vision pipeline, episode data format, GRPO training loop
-orchestrated by NemoClaw, checkpoint promotion, and phase-based progression.
+orchestrated by NemoClaw via NeMo Gym, checkpoint promotion, and phase-based progression.
+
+**Revision note (2026-04-05):** The game ↔ NemoClaw bridge is now specified as a
+**NeMo Gym OpenEnv service** rather than custom glue code. See
+`2026-04-05-nemo-gym-integration.md` for the full interface spec. The training loop
+architecture below is updated to reflect this.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                      Training Loop                          │
 │                                                             │
 │  Linux Desktop (10.0.0.10)                                  │
-│    ONI game + ONIBridge → TCP state stream                  │
-│    Screenshot capture every 10–15s                          │
-│    Vision model → text description                          │
+│    ONI game + ONIBridge → TCP :9999                         │
+│    Screenshot every 10–15s → SmolVLM2 vision                │
 │         │                                                   │
 │         ▼                                                   │
 │  Mac Mini (10.0.0.210)                                      │
-│    runner.py — assembles state prompt + vision text         │
-│    ModelBackend.call() → inference node                     │
-│         │                                                   │
+│    ONIEnvironmentService (NeMo Gym OpenEnv)                 │
+│    FastAPI :8090 — /reset, /step, /health                   │
+│    Wraps: BridgeClient, RewardCalculator,                   │
+│           VisionCapture, MemoryStore                        │
+│    Logs episode metrics → W&B                               │
+│         │  HTTP (NeMo Gym OpenEnv protocol)                 │
+│         ▼                                                   │
+│  DGX B (192.168.3.20) — training / NemoClaw                │
+│    NemoClaw :8080 — GRPO trainer                            │
+│    Calls /reset + /step via OpenEnv                         │
+│    Policy inference → DGX A vLLM                            │
+│    Logs training step metrics → W&B                         │
+│         │  checkpoint promotion                             │
 │         ▼                                                   │
 │  DGX A (10.0.0.69) — inference                             │
 │    vLLM :8000 serving current best checkpoint               │
-│    Returns action JSON                                      │
-│         │                                                   │
-│         ▼ (episode trajectories written to disk)            │
-│  DGX B (192.168.3.20) — training / NemoClaw                │
-│    NemoClaw :8080 orchestrates GRPO loop                    │
-│    Llama-3.3-Nemotron-Super-49B-FP8 as policy model        │
-│    Promotes checkpoint → DGX A after each update           │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -328,8 +336,9 @@ This is out of scope for Phase 0/1 but the infrastructure is already in place.
 |------|-------|----------|
 | Deploy llama.cpp server for SmolVLM2-2.2B on Linux desktop :8080 | User | P1 — blocks vision pipeline |
 | Implement `OpenAICompatibleBackend` in `llm.py` | Dev Claude | P1 |
-| Implement `capture_vision_description()` in `runner.py` | Dev Claude | P1 |
-| Add Config tab to dashboard | Dev Claude | P1 (in progress) |
+| Implement `ONIEnvironmentService` (NeMo Gym OpenEnv) | Dev Claude | P1 — see nemo-gym-integration spec |
+| Implement `RunTracker` (W&B) + wire into env_service | Dev Claude | P1 — see observability spec |
+| Add Training tab + `/training-stats` to dashboard | Dev Claude | P1 — see observability spec |
+| Write `nemo_gym_config.yaml` for DGX B | User (with Ross) | P1 |
 | Set up vLLM reload endpoint on DGX A | User | P2 |
-| Configure NemoClaw episode intake pipeline on DGX B | User | P2 |
-| Write Agent Memory spec (ChromaDB) | Brainstorm Claude | P3 |
+| Add W&B MCP server to `.claude/settings.json` | User | P1 |
