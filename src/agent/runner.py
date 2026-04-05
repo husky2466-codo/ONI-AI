@@ -37,7 +37,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from src.agent.client import BridgeClient
 from src.agent.llm import LLMAgent, DEFAULT_ENDPOINT, DEFAULT_MODEL
 from src.agent.perimeter import SpatialLedger
-from src.agent.protocol import build_abandon_perimeter, build_no_op
+from src.agent.protocol import build_abandon_perimeter, build_no_op, build_place_perimeter
 from src.agent.reload import CANONICAL_SAVE, EpisodeReloader
 from src.agent.reward import RewardCalculator, format_colony_health
 
@@ -357,23 +357,13 @@ async def run(
             # Update spatial ledger each tick
             ledger.on_state(state.data)
 
-            # Auto-complete: perimeter hit 100% — send abandon to clean up mod side
-            if ledger.autocomplete_pending:
-                ledger.clear_autocomplete()
-                logger.info("Perimeter auto-complete — sending abandon_perimeter")
-                await client.send_action(build_abandon_perimeter())
-                relay.pending_action = build_abandon_perimeter()
-
-            # Auto-abandon: perimeter placed but no blueprint matched — useless, clear it.
-            # Mark the blueprint_id as sentinel so we don't spam abandon every tick
-            # while waiting for the mod to confirm the abandon and clear its state.
-            if ledger.active is not None and not ledger.active.blueprint_id:
-                if not getattr(ledger.active, '_abandon_sent', False):
-                    logger.warning("Perimeter has no matching blueprint — auto-abandoning")
-                    ledger.active._abandon_sent = True
-                    await client.send_action(build_abandon_perimeter())
-                    relay.pending_action = build_abandon_perimeter()
-                continue
+            # Auto-complete: for each zone that hit 100%, send abandon_perimeter(id)
+            for _zone_id in ledger.autocomplete_pending:
+                logger.info("Zone %s auto-complete (100%%) — sending abandon_perimeter", _zone_id)
+                _abandon = build_abandon_perimeter(_zone_id)
+                await client.send_action(_abandon)
+                relay.pending_action = _abandon
+                ledger.clear_autocomplete(_zone_id)
 
             # Reward calculation
             tick_reward = reward_calc.tick(state.data)
@@ -500,14 +490,24 @@ async def run(
                 _validation_result = "passed"
                 _validation_reason = ""
 
-                # Hard block: never send place_perimeter when one is already active.
-                # The mod rejects it anyway, but this prevents the agent from wasting
-                # every tick retrying it instead of doing actual work.
-                if candidate.get("action") == "place_perimeter" and ledger.active is not None:
-                    logger.info("  -> runner blocked place_perimeter (perimeter already active)")
-                    _validation_result = "blocked"
-                    _validation_reason = "perimeter already active"
-                    candidate = build_no_op()
+                # Validate place_perimeter before forwarding to mod.
+                # Checks: blueprint match, overlap, padding, zone cap.
+                if candidate.get("action") == "place_perimeter":
+                    import uuid
+                    _zid = candidate.get("id") or uuid.uuid4().hex[:8]
+                    candidate["id"] = _zid
+                    _priority = int(candidate.get("priority", 5))
+                    _ok, _reason = ledger.validate_place(
+                        int(candidate.get("x1", 0)), int(candidate.get("y1", 0)),
+                        int(candidate.get("x2", 0)), int(candidate.get("y2", 0)),
+                        str(candidate.get("goal", "")), _priority,
+                    )
+                    if not _ok:
+                        logger.info("  -> runner blocked place_perimeter: %s", _reason)
+                        _validation_result = "blocked"
+                        _validation_reason = _reason
+                        candidate = build_no_op()
+                        ledger._last_rejection = _reason
 
                 # Coordinate validation: reject dig on cells that are already open.
                 # Build solid-cell lookup from current tile window.
