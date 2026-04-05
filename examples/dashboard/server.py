@@ -179,6 +179,7 @@ def stop_runner() -> dict:
 
 last_state:    dict       = {}
 log_entries:   list[str]  = []
+pipeline_snapshots: list[dict] = []
 browser_clients: list[WebSocket] = []
 _relay_ws = None
 
@@ -207,7 +208,7 @@ async def push_runner_status() -> None:
 # ---------------------------------------------------------------------------
 
 async def relay_loop() -> None:
-    global last_state, log_entries, _relay_ws
+    global last_state, log_entries, pipeline_snapshots, _relay_ws
     while True:
         try:
             logger.info("Connecting to runner relay at %s ...", RELAY_URL)
@@ -224,6 +225,10 @@ async def relay_loop() -> None:
                         last_state = msg.get("data", {})
                     elif msg.get("type") == "ack":
                         log_entries = msg.get("log", log_entries)
+                    elif msg.get("type") == "pipeline":
+                        pipeline_snapshots.append(msg)
+                        if len(pipeline_snapshots) > 50:
+                            pipeline_snapshots.pop(0)
                     await broadcast_browsers(msg)
         except Exception as e:
             _relay_ws = None
@@ -276,6 +281,9 @@ async def websocket_endpoint(ws: WebSocket):
         await ws.send_json({"type": "state", "data": last_state})
     if log_entries:
         await ws.send_json({"type": "ack", "log": log_entries[-20:]})
+    if pipeline_snapshots:
+        for snap in pipeline_snapshots[-10:]:
+            await ws.send_json(snap)
     await ws.send_json({
         "type":    "runner_status",
         "running": runner_running(),
