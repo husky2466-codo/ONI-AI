@@ -210,11 +210,14 @@ def _format_state(data: dict[str, Any], pending_action: "dict | None" = None, le
         for a in alerts:
             lines.append(f"  ! {a}")
 
+    _SPAWNED_TYPES = {"Telepad", "RationBox", "IceCooledFan", "StorageLocker"}
+
     lines.append("")
     lines.append(f"Buildings on map: {len(buildings)}")
     for b in buildings[:20]:
         op = "OK" if b.get("operational") else "OFFLINE"
-        lines.append(f"  {b.get('type','?')} @ ({b.get('x','?')},{b.get('y','?')}) [{op}]")
+        tag = " [SPAWNED]" if b.get("type") in _SPAWNED_TYPES else ""
+        lines.append(f"  {b.get('type','?')}{tag} @ ({b.get('x','?')},{b.get('y','?')}) [{op}]")
     if len(buildings) > 20:
         lines.append(f"  ...and {len(buildings) - 20} more")
 
@@ -228,8 +231,14 @@ def _format_state(data: dict[str, Any], pending_action: "dict | None" = None, le
         survival.append(f"Bed x{dup_count} (no sleep!)")
     if "OxygenDiffuser" not in built_types and "Electrolyzer" not in built_types:
         survival.append("OxygenDiffuser (no oxygen production!)")
-    if "MicrobeMusher" not in built_types:
-        survival.append("MicrobeMusher (no food production!)")
+
+    _FOOD_PRODUCERS = {"MicrobeMusher", "GasRangeComplete", "ElectricGrillComplete"}
+    if not (built_types & _FOOD_PRODUCERS):
+        if "RationBox" in built_types:
+            survival.append("MicrobeMusher (ration box has starting food, but build a cooker soon)")
+        else:
+            survival.append("MicrobeMusher (no food source!)")
+
     if "ManualGenerator" not in built_types:
         survival.append("ManualGenerator (no power!)")
     if "Battery" not in built_types:

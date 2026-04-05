@@ -94,3 +94,48 @@ def test_search_wiki_no_results(tmp_path):
     agent._wiki_db = db_path
     result = agent._search_wiki("xyzzy nonexistent query zzz")
     assert "No results" in result
+
+
+# ---------------------------------------------------------------------------
+# _format_state — spawned building tag + food-source survival check
+# ---------------------------------------------------------------------------
+
+def _make_building(btype: str, x: int = 100, y: int = 200, operational: bool = True) -> dict:
+    return {"type": btype, "x": x, "y": y, "operational": operational}
+
+
+def test_format_state_ration_box_suppresses_urgent_food_warning():
+    """RationBox present but no MicrobeMusher → mild warning, not urgent."""
+    state = _make_state(buildings=[_make_building("RationBox")])
+    output = _format_state(state)
+    assert "ration box" in output.lower()
+    assert "no food source" not in output.lower()
+
+
+def test_format_state_no_food_at_all_gives_urgent_warning():
+    """No food source whatsoever → urgent warning."""
+    state = _make_state(buildings=[])
+    output = _format_state(state)
+    assert "no food source" in output.lower()
+
+
+def test_format_state_microbe_musher_suppresses_food_warning():
+    """MicrobeMusher present → no food warning at all."""
+    state = _make_state(buildings=[_make_building("MicrobeMusher")])
+    output = _format_state(state)
+    lines = output.split("\n")
+    food_warning_lines = [l for l in lines if l.strip().startswith("!") and "food" in l.lower()]
+    assert not food_warning_lines, f"Unexpected food warning: {food_warning_lines}"
+
+
+def test_format_state_spawned_buildings_tagged():
+    """Telepad and RationBox get [SPAWNED] tag; player-built Bed does not."""
+    state = _make_state(buildings=[
+        _make_building("Telepad", x=130, y=200),
+        _make_building("RationBox", x=128, y=200),
+        _make_building("Bed", x=116, y=201),
+    ])
+    output = _format_state(state)
+    assert "Telepad [SPAWNED]" in output
+    assert "RationBox [SPAWNED]" in output
+    assert "Bed [SPAWNED]" not in output
