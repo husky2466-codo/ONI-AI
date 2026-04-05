@@ -24,7 +24,9 @@ import asyncio
 import json
 import logging
 import os
+import time as _time
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
@@ -296,6 +298,27 @@ def _validate_dig(action: dict, state_data: dict) -> dict:
     return action
 
 
+@dataclass
+class PipelineSnapshot:
+    """Captures per-stage data for one agent tick. Broadcast to dashboard as pipeline message."""
+    tick: int
+    cycle: int
+    elapsed_ms: int = 0
+    _stages: list = field(default_factory=list, repr=False)
+
+    def add_stage(self, name: str, label: str, data: dict) -> None:
+        self._stages.append({"name": name, "label": label, "data": data})
+
+    def to_dict(self) -> dict:
+        return {
+            "type": "pipeline",
+            "tick": self.tick,
+            "cycle": self.cycle,
+            "elapsed_ms": self.elapsed_ms,
+            "stages": list(self._stages),
+        }
+
+
 async def run(
     host: str,
     port: int,
@@ -402,10 +425,32 @@ async def run(
 
             # Check for a manual action from the dashboard first; fall back to AI
             manual = relay.get_manual_action_nowait()
+
+            snap = PipelineSnapshot(tick=tick, cycle=cycle)
+            snap_start = _time.monotonic()
+
+            # Stage: state_in (always captured regardless of manual/AI branch)
+            _dups = state.data.get("duplicants", [])
+            _tiles = state.data.get("tiles", {})
+            _tw = f"{_tiles.get('w',0)}x{_tiles.get('h',0)} @ ({_tiles.get('x',0)},{_tiles.get('y',0)})"
+            snap.add_stage("state_in", "State Received", {
+                "cycle": cycle,
+                "dupes": len(_dups),
+                "o2_kg": round(state.data.get("resources", {}).get("oxygen_kg", 0), 2),
+                "alerts": len(state.data.get("alerts", [])),
+                "tile_window": _tw,
+            })
+
             if manual:
                 action = manual
                 last_ai_action = None  # reset dedup on manual override
                 logger.info("  -> manual action from dashboard: %s", action)
+                snap.add_stage("validation", "Validation", {
+                    "input_action": action,
+                    "result": "manual",
+                    "reason": "dashboard override",
+                    "output_action": action,
+                })
             else:
                 colony_health = format_colony_health(
                     state.data, tick_reward, episode_reward, obligations
@@ -416,10 +461,13 @@ async def run(
                 # since that's what we reasoned about.
                 loop = asyncio.get_event_loop()
                 last_ack_dict = (
-                    {"action": client.last_ack.action, "success": client.last_ack.success, "error": client.last_ack.error}
+                    {"action": client.last_ack.action, "success": client.last_ack.success,
+                     "error": client.last_ack.error}
                     if client.last_ack else None
                 )
-                candidate = await loop.run_in_executor(
+
+                _llm_start = _time.monotonic()
+                candidate_tuple = await loop.run_in_executor(
                     _llm_executor,
                     lambda: agent.decide(
                         state.data,
@@ -429,17 +477,46 @@ async def run(
                         last_ack=last_ack_dict,
                     ),
                 )
+                _llm_elapsed_ms = int((_time.monotonic() - _llm_start) * 1000)
+                candidate, prompt_text, raw_response = candidate_tuple
+
+                # Stage: prompt
+                snap.add_stage("prompt", "Prompt Formatted", {
+                    "chars": len(prompt_text),
+                    "tokens_est": len(prompt_text) // 4,
+                    "preview": prompt_text[:500],
+                })
+
+                # Stage: llm_call
+                snap.add_stage("llm_call", "LLM Response", {
+                    "model": agent._model,
+                    "elapsed_ms": _llm_elapsed_ms,
+                    "raw_response": raw_response[:800],
+                    "extracted_json": candidate,
+                })
+
+                # Validation chain
+                _validation_input = dict(candidate)
+                _validation_result = "passed"
+                _validation_reason = ""
+
                 # Hard block: never send place_perimeter when one is already active.
                 # The mod rejects it anyway, but this prevents the agent from wasting
                 # every tick retrying it instead of doing actual work.
                 if candidate.get("action") == "place_perimeter" and ledger.active is not None:
                     logger.info("  -> runner blocked place_perimeter (perimeter already active)")
+                    _validation_result = "blocked"
+                    _validation_reason = "perimeter already active"
                     candidate = build_no_op()
 
                 # Coordinate validation: reject dig on cells that are already open.
                 # Build solid-cell lookup from current tile window.
                 if candidate.get("action") == "dig":
-                    candidate = _validate_dig(candidate, state.data)
+                    _validated = _validate_dig(candidate, state.data)
+                    if _validated.get("action") == "no_op":
+                        _validation_result = "blocked"
+                        _validation_reason = f"cell ({candidate.get('cell_x')},{candidate.get('cell_y')}) is not solid"
+                        candidate = _validated
 
                 # Suppress repeated identical non-no_op AI actions for _DEDUP_TTL ticks
                 if (candidate == last_ai_action
@@ -447,15 +524,39 @@ async def run(
                         and (tick - last_ai_action_tick) < _DEDUP_TTL):
                     logger.info("  -> dedup: suppressing repeat %s (sent %d ticks ago)",
                                 candidate.get("action"), tick - last_ai_action_tick)
+                    _validation_result = "deduped"
+                    _validation_reason = f"same as tick {last_ai_action_tick}"
                     action = build_no_op()
                 else:
                     action = candidate
                     last_ai_action = candidate
                     last_ai_action_tick = tick
+
+                # Stage: validation
+                snap.add_stage("validation", "Validation", {
+                    "input_action": _validation_input,
+                    "result": _validation_result,
+                    "reason": _validation_reason,
+                    "output_action": action,
+                })
+
                 logger.info("  -> AI action: %s", action)
 
             await client.send_action(action)
             relay.pending_action = action
+
+            # Stage: sent
+            snap.add_stage("sent", "Sent to Game", {"action": action})
+
+            # Stage: ack (reflects ack from previous action — next tick delivers current ack)
+            if client.last_ack:
+                snap.add_stage("ack", "Game ACK", {
+                    "action": client.last_ack.action,
+                    "success": client.last_ack.success,
+                    "error": client.last_ack.error,
+                })
+
+            snap.elapsed_ms = int((_time.monotonic() - snap_start) * 1000)
 
             # Build a rich log entry for the dashboard
             act = action.get("action", "?")
@@ -481,6 +582,7 @@ async def run(
                 "tick": tick,
                 "cycle": cycle,
             })
+            await relay.broadcast(snap.to_dict())
 
             if episode_log is not None:
                 log_entries.append({
