@@ -633,7 +633,12 @@ function renderColony() {
       var r2 = parseInt(color.slice(1,3)||'30',16);
       var g2 = parseInt(color.slice(3,5)||'36',16);
       var b2 = parseInt(color.slice(5,7)||'3d',16);
-      var idx = i * 4;
+      // Tile data is bottom-row-first (Y increases up in ONI).
+      // Canvas is top-row-first. Flip vertically so the image matches the game view.
+      var col = i % w;
+      var row = Math.floor(i / w);
+      var flippedRow = (h - 1 - row);
+      var idx = (flippedRow * w + col) * 4;
       img.data[idx]=r2; img.data[idx+1]=g2; img.data[idx+2]=b2; img.data[idx+3]=255;
     }
     ctx.putImageData(img, 0, 0);
