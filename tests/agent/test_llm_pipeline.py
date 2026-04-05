@@ -62,3 +62,19 @@ def test_decide_failure_returns_tuple_with_noop():
     assert action["action"] == "no_op"
     assert isinstance(prompt, str)
     assert raw == ""
+
+
+def test_decide_non_noop_action_returned_correctly():
+    """A non-no_op LLM response is correctly parsed and returned as first tuple element."""
+    agent = _make_agent()
+    dig_response = '{"type": "action", "action": "dig", "cell_x": 114, "cell_y": 214}'
+    mock_response = MagicMock()
+    mock_response.choices[0].message.content = dig_response
+    mock_response.usage = None
+    with patch.object(agent._client.chat.completions, "create", return_value=mock_response):
+        action, prompt, raw = agent.decide(_make_state())
+    assert action["action"] == "dig"
+    assert action["cell_x"] == 114
+    assert action["cell_y"] == 214
+    assert isinstance(prompt, str)
+    assert raw == dig_response

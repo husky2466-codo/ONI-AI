@@ -358,7 +358,7 @@ class LLMAgent:
         ledger_context: str = "",
         colony_health: str = "",
         last_ack: "dict | None" = None,
-    ) -> "tuple[dict[str, Any], str, str]":
+    ) -> tuple[dict[str, Any], str, str]:
         """
         Given a state snapshot dict, return (action_dict, prompt_text, raw_llm_response).
         Falls back to (no_op, prompt, "") on any failure.
