@@ -484,7 +484,7 @@ async def run(
                 snap.add_stage("prompt", "Prompt Formatted", {
                     "chars": len(prompt_text),
                     "tokens_est": len(prompt_text) // 4,
-                    "preview": prompt_text[:500],
+                    "preview": prompt_text[:3000],
                 })
 
                 # Stage: llm_call
