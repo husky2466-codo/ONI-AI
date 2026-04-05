@@ -395,9 +395,10 @@ class SpatialLedger:
             if blueprint:
                 zone.task_board = _build_task_board(blueprint, state, zone.bounds, storage)
             if zone.task_board and zone.task_board.pct >= 100.0:
-                logger.info("Zone %s auto-complete (100%%) — signalling runner", zone.id)
-                self._archive("complete", zone.id, state.get("cycle", 0))
-                self._autocomplete_pending.append(zone.id)
+                if zone.id not in self._autocomplete_pending:
+                    logger.info("Zone %s auto-complete (100%%) — signalling runner", zone.id)
+                    self._archive("complete", zone.id, state.get("cycle", 0))
+                    self._autocomplete_pending.append(zone.id)
                 completed_ids.append(zone.id)
 
         # Remove auto-completed zones
@@ -425,7 +426,10 @@ class SpatialLedger:
             ))
 
     def format_context(self) -> str:
-        """Compact string for injection into the AI prompt."""
+        """Compact string for injection into the AI prompt.
+
+        Side effect: clears _last_rejection after emitting it (consume-once semantics).
+        """
         lines: list[str] = []
 
         if self._last_rejection:

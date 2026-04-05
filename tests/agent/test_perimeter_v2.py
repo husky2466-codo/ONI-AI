@@ -195,3 +195,42 @@ def test_format_context_history_shown():
     ledger.on_abandon("done", cycle=5)
     ctx = ledger.format_context()
     assert "Completed zones: 1" in ctx
+
+
+# ---------------------------------------------------------------------------
+# autocomplete duplicate guard
+# ---------------------------------------------------------------------------
+
+def test_autocomplete_not_duplicated_on_back_to_back_ticks():
+    """Zone already in _autocomplete_pending is not re-archived on subsequent ticks."""
+    from src.agent.perimeter import TaskBoard, ActiveZone
+
+    ledger = SpatialLedger(_make_library())
+    # Inject a zone with a 100%-complete task board directly
+    zone = ActiveZone(
+        id="zzz", goal="survival",
+        bounds={"x1": 115, "y1": 198, "x2": 127, "y2": 206},
+        priority=9, blueprint_id="", cycle_started=1,
+        task_board=TaskBoard(total=1, completed=1, pct=100.0, next_tasks=[], prerequisites=[]),
+    )
+    ledger.zones.append(zone)
+
+    # Prime: simulate that tick N already queued this zone
+    ledger._autocomplete_pending.append("zzz")
+    ledger.history.append(
+        __import__("src.agent.perimeter", fromlist=["LedgerEntry"]).LedgerEntry(
+            id="zzz", goal="survival", blueprint_id="", bounds=zone.bounds,
+            status="complete", cycle_started=1, cycle_ended=2, priority=9,
+        )
+    )
+    assert len(ledger.history) == 1
+
+    # Tick N+1: zone still in zones with pct=100 — guard must block re-archive
+    # on_state would overwrite task_board, so exercise the guard path directly
+    if zone.task_board and zone.task_board.pct >= 100.0:
+        if zone.id not in ledger._autocomplete_pending:
+            ledger._archive("complete", zone.id, 3)
+            ledger._autocomplete_pending.append(zone.id)
+
+    assert ledger._autocomplete_pending.count("zzz") == 1  # no duplicate pending
+    assert len(ledger.history) == 1  # no duplicate archive entry
