@@ -274,21 +274,45 @@ def _format_state(data: dict[str, Any], pending_action: "dict | None" = None, le
     return "\n".join(lines)
 
 
+_SOLID_ELEMENTS = {
+    "Sandstone", "Granite", "Igneous Rock", "Obsidian", "Abyssalite",
+    "Copper Ore", "Iron Ore", "Gold Amalgam", "Fossil", "Salt", "Dirt",
+    "Mud", "Carbon", "Ice", "Snow", "Regolith", "Wolframite",
+}
+
 def _summarize_tiles(tiles: dict) -> "str | None":
-    """Return a compact text summary of a tile window for inclusion in the prompt."""
+    """Return a spatial tile summary for the LLM — lists solid cells explicitly."""
     data = tiles.get("data")
     if not data:
         return None
     x, y, w, h = tiles.get("x", 0), tiles.get("y", 0), tiles.get("w", 0), tiles.get("h", 0)
-    total = len(data)
-    counts: dict[str, int] = {}
-    for entry in data:
-        if isinstance(entry, (list, tuple)) and len(entry) >= 1:
-            name = str(entry[0])
-            counts[name] = counts.get(name, 0) + 1
-    top = sorted(counts.items(), key=lambda kv: kv[1], reverse=True)[:6]
-    top_str = ", ".join(f"{n}({c})" for n, c in top)
-    return f"Tile window: x={x} y={y} w={w} h={h} ({total} tiles) | top elements: {top_str}"
+    if not w or not h:
+        return None
+
+    solid_cells: list[str] = []
+    for idx, entry in enumerate(data):
+        if not isinstance(entry, (list, tuple)) or len(entry) < 2:
+            continue
+        element = str(entry[0])
+        mass = float(entry[1]) if entry[1] else 0.0
+        if mass > 0 and element not in ("Vacuum", "Invalid"):
+            col = idx % w
+            row = idx // w
+            cx = x + col
+            cy = y + row
+            solid_cells.append(f"({cx},{cy})")
+
+    lines = [f"Tile window: origin=({x},{y}) size={w}x{h}"]
+    if solid_cells:
+        # Limit to 40 cells to keep prompt manageable
+        shown = solid_cells[:40]
+        lines.append(f"Solid tiles (must dig before building) [{len(solid_cells)} total, showing {len(shown)}]:")
+        lines.append("  " + " ".join(shown))
+        if len(solid_cells) > 40:
+            lines.append(f"  ...and {len(solid_cells)-40} more solid tiles")
+    else:
+        lines.append("No solid tiles in window — area already open.")
+    return "\n".join(lines)
 
 
 class LLMAgent:
