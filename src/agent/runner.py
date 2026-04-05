@@ -287,12 +287,15 @@ async def run(
                 await client.send_action(build_abandon_perimeter())
                 relay.pending_action = build_abandon_perimeter()
 
-            # Auto-abandon: perimeter placed but no blueprint matched — useless, clear it
+            # Auto-abandon: perimeter placed but no blueprint matched — useless, clear it.
+            # Mark the blueprint_id as sentinel so we don't spam abandon every tick
+            # while waiting for the mod to confirm the abandon and clear its state.
             if ledger.active is not None and not ledger.active.blueprint_id:
-                logger.warning("Perimeter has no matching blueprint — auto-abandoning")
-                ledger.on_abandon(cycle)
-                await client.send_action(build_abandon_perimeter())
-                relay.pending_action = build_abandon_perimeter()
+                if not getattr(ledger.active, '_abandon_sent', False):
+                    logger.warning("Perimeter has no matching blueprint — auto-abandoning")
+                    ledger.active._abandon_sent = True
+                    await client.send_action(build_abandon_perimeter())
+                    relay.pending_action = build_abandon_perimeter()
                 continue
 
             # Reward calculation
