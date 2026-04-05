@@ -54,6 +54,18 @@ Your job is to keep duplicants alive and the colony growing.
 |--------------|--------------|---------|------------------|--------------------------------|-------|
 | Electrolyzer | Electrolyzer | -120 W  | 1,000 g/s Water  | 888 g/s O2 + 112 g/s H2 @ 70°C | Needs water pipes, gas pumps to vent H2. Superior to OxygenDiffuser long-term. |
 
+## Starting buildings (pre-spawned — always present on a new map)
+
+These buildings exist at game start on the Terra asteroid. Do NOT try to place them — they are already built.
+They appear in the buildings list tagged [SPAWNED].
+
+| type (in state) | In-game name    | Function |
+|-----------------|-----------------|----------|
+| Telepad         | Printing Pod    | Delivers duplicants or care packages every 3 cycles. Check printing_pod.cycles_until_next in state. Do not try to build or place this. |
+| RationBox       | Ration Box      | Stores up to 20 kg food. Starting food supply is here. Does NOT produce food — needs a MicrobeMusher for long-term. |
+| IceCooledFan    | Ice-Cooled Fan  | Cools nearby area using ice. Stops when ice runs out. |
+| StorageLocker   | Storage Locker  | General-purpose raw material storage. |
+
 ## Survival rules
 1. ALWAYS have at least 1 Outhouse per 3 duplicants.
 2. ALWAYS have 1 Cot (Bed) per duplicant.

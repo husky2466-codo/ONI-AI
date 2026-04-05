@@ -128,6 +128,16 @@ def test_format_state_microbe_musher_suppresses_food_warning():
     assert not food_warning_lines, f"Unexpected food warning: {food_warning_lines}"
 
 
+def test_system_prompt_contains_starting_buildings_table():
+    """SYSTEM_PROMPT must document Telepad and RationBox."""
+    from src.agent.llm import SYSTEM_PROMPT
+    assert "Telepad" in SYSTEM_PROMPT
+    assert "RationBox" in SYSTEM_PROMPT
+    assert "Printing Pod" in SYSTEM_PROMPT
+    assert "Ration Box" in SYSTEM_PROMPT
+    assert "pre-spawned" in SYSTEM_PROMPT
+
+
 def test_format_state_spawned_buildings_tagged():
     """Telepad and RationBox get [SPAWNED] tag; player-built Bed does not."""
     state = _make_state(buildings=[
