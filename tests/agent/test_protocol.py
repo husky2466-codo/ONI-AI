@@ -5,6 +5,8 @@ from src.agent.protocol import (
     parse_state_message,
     build_action,
     build_no_op,
+    build_place_perimeter,
+    build_abandon_perimeter,
     StateMessage,
 )
 
@@ -82,3 +84,16 @@ def test_set_speed_is_valid_action():
     assert "set_speed" in VALID_ACTIONS
 
 
+def test_build_place_perimeter_includes_id_and_priority():
+    msg = build_place_perimeter("abc123", 115, 198, 127, 206, "survival", 9)
+    assert msg["action"] == "place_perimeter"
+    assert msg["id"] == "abc123"
+    assert msg["priority"] == 9
+    assert msg["x1"] == 115
+    assert msg["x2"] == 127
+
+
+def test_build_abandon_perimeter_includes_zone_id():
+    msg = build_abandon_perimeter("abc123")
+    assert msg["action"] == "abandon_perimeter"
+    assert msg["id"] == "abc123"

@@ -78,12 +78,12 @@ def build_no_op() -> dict[str, Any]:
     return build_action("no_op")
 
 
-def build_place_perimeter(x1: int, y1: int, x2: int, y2: int, goal: str) -> dict[str, Any]:
-    return build_action("place_perimeter", x1=x1, y1=y1, x2=x2, y2=y2, goal=goal)
+def build_place_perimeter(id: str, x1: int, y1: int, x2: int, y2: int, goal: str, priority: int) -> dict[str, Any]:
+    return {"type": "action", "action": "place_perimeter", "id": id, "x1": x1, "y1": y1, "x2": x2, "y2": y2, "goal": goal, "priority": priority}
 
 
-def build_abandon_perimeter() -> dict[str, Any]:
-    return build_action("abandon_perimeter")
+def build_abandon_perimeter(zone_id: str) -> dict[str, Any]:
+    return {"type": "action", "action": "abandon_perimeter", "id": zone_id}
 
 
 def build_assign_research(tech_id: str) -> dict[str, Any]:
