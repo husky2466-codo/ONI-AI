@@ -597,10 +597,25 @@ namespace ONIBridge
                 }
                 else
                 {
-                    wx = Grid.WidthInCells / 2 - 15;
-                    wy = Grid.HeightInCells / 2 - 15;
-                    ex = wx + 30;
-                    ey = wy + 30;
+                    // No buildings yet — center on average dupe position so the LLM
+                    // can see the actual terrain around the colony start area.
+                    int cx2 = Grid.WidthInCells / 2, cy2 = Grid.HeightInCells / 2;
+                    if (Components.MinionIdentities != null)
+                    {
+                        int sumX = 0, sumY = 0, count = 0;
+                        foreach (MinionIdentity m in Components.MinionIdentities)
+                        {
+                            if (m == null) continue;
+                            sumX += (int)m.transform.position.x;
+                            sumY += (int)m.transform.position.y;
+                            count++;
+                        }
+                        if (count > 0) { cx2 = sumX / count; cy2 = sumY / count; }
+                    }
+                    wx = cx2 - 15;
+                    wy = cy2 - 15;
+                    ex = cx2 + 15;
+                    ey = cy2 + 15;
                 }
             }
 

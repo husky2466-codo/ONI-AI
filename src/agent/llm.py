@@ -350,7 +350,8 @@ class LLMAgent:
 
             raw = response.choices[0].message.content or ""
             raw = raw.strip()
-            logger.debug("LLM raw response: %s", raw)
+            logger.info("LLM prompt:\n%s", prompt)
+            logger.info("LLM raw response: %s", raw)
             return self._parse_action(raw)
 
         except Exception as e:
