@@ -205,6 +205,32 @@ body {
 .cfg-btn.neutral { background: #21262d; border-color: #30363d; color: #8b949e; }
 .cfg-note { font-size: 10px; color: #484f58; font-style: italic; margin-top: 4px; }
 .cfg-divider { border-top: 1px solid #21262d; margin: 8px 0; }
+
+/* Pipeline Inspector */
+.pl-tick-row { display:flex;align-items:center;gap:6px;padding:4px 6px;border-bottom:1px solid #0d1117;cursor:pointer;font-size:11px; }
+.pl-tick-row:hover { background:#161b22; }
+.pl-tick-row.selected { background:#1a2332;border-left:2px solid #58a6ff; }
+.pl-tick-num { color:#484f58;width:36px;flex-shrink:0;font-size:10px; }
+.pl-tick-cycle { color:#8b949e;width:28px;flex-shrink:0; }
+.pl-tick-action { flex:1;color:#c9d1d9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.pl-tick-ms { color:#484f58;font-size:10px;flex-shrink:0; }
+.pl-badge { font-size:9px;padding:1px 5px;border-radius:2px;flex-shrink:0; }
+.pl-badge.passed  { background:#1f3a2b;color:#3fb950; }
+.pl-badge.blocked { background:#2d2210;color:#f0883e; }
+.pl-badge.deduped { background:#21262d;color:#8b949e; }
+.pl-badge.failed  { background:#2d1f1f;color:#f85149; }
+.pl-badge.manual  { background:#1a2332;color:#58a6ff; }
+.pl-stage-card { background:#0d1117;border:1px solid #21262d;border-radius:3px;padding:6px 8px;margin-bottom:6px; }
+.pl-stage-header { display:flex;align-items:center;gap:6px;margin-bottom:4px; }
+.pl-stage-name { font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#484f58; }
+.pl-stage-label { font-size:12px;font-weight:bold;color:#c9d1d9;flex:1; }
+.pl-pre { background:#161b22;border:1px solid #21262d;border-radius:2px;padding:6px 8px;font-family:'Courier New',monospace;font-size:11px;color:#8b949e;white-space:pre-wrap;word-break:break-all;max-height:180px;overflow-y:auto;margin-top:4px; }
+.pl-kv { display:flex;gap:8px;padding:1px 0;font-size:11px; }
+.pl-kv .k { color:#484f58;min-width:90px; }
+.pl-kv .v { color:#c9d1d9; }
+.pl-kv .v.ok { color:#3fb950; }
+.pl-kv .v.warn { color:#f0883e; }
+.pl-kv .v.bad { color:#f85149; }
 </style>
 </head>
 <body>
@@ -228,6 +254,7 @@ body {
   <button data-tab="research" onclick="switchTab('research')">🔬 Research</button>
   <button data-tab="perimeter" onclick="switchTab('perimeter')">📐 Perimeter</button>
   <button data-tab="log" onclick="switchTab('log')">📋 Log</button>
+  <button data-tab="pipeline" onclick="switchTab('pipeline')">🔬 Pipeline</button>
   <button data-tab="config" onclick="switchTab('config')">⚙️ Config</button>
 </div>
 
@@ -352,6 +379,21 @@ body {
       <div class="kv"><span class="k">Reward</span><span class="v ok" id="ls-reward">—</span></div>
       <div class="kv"><span class="k">Deaths</span><span class="v ok" id="ls-deaths">0</span></div>
     </div>
+  </div>
+</div></div>
+  <div class="tab-body" id="tab-pipeline"><div style="display:grid;grid-template-columns:260px 1fr;gap:6px;height:100%">
+  <div class="card" style="display:flex;flex-direction:column;overflow:hidden">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+      <h3 style="margin:0;flex:1">Tick Feed</h3>
+      <span id="pl-auto-label" style="font-size:10px;color:#3fb950">AUTO</span>
+      <button class="tb-btn" onclick="plToggleAuto()" id="pl-auto-btn" style="padding:2px 6px;font-size:10px">On</button>
+      <button class="tb-btn" onclick="plClear()" style="padding:2px 6px;font-size:10px">Clear</button>
+    </div>
+    <div id="pl-feed" style="overflow-y:auto;flex:1"></div>
+  </div>
+  <div class="card" style="display:flex;flex-direction:column;overflow:hidden">
+    <h3 id="pl-detail-title">Select a tick to inspect</h3>
+    <div id="pl-detail" style="overflow-y:auto;flex:1;font-size:12px"></div>
   </div>
 </div></div>
   <div class="tab-body" id="tab-config"><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;height:100%;align-content:start">
@@ -510,6 +552,8 @@ function handleMessage(msg) {
     document.getElementById('dot-runner').className = 'dot' + (running ? ' on' : '');
     document.getElementById('runner-label').textContent = 'Runner: ' + (running ? 'running' : 'stopped');
     renderConfig();
+  } else if (msg.type === 'pipeline') {
+    plAddSnapshot(msg);
   }
 }
 
@@ -1149,6 +1193,136 @@ function renderHealthStrip() {
 function addLogEntry(type, msg) {
   logEntries.push({ ts: new Date().toLocaleTimeString('en',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'}), type: type, msg: msg });
   if (logEntries.length > 500) logEntries.shift();
+}
+
+// Pipeline Inspector
+var plSnapshots = [];
+var plSelectedTick = null;
+var plAutoScroll = true;
+
+function plToggleAuto() {
+  plAutoScroll = !plAutoScroll;
+  document.getElementById('pl-auto-btn').textContent = plAutoScroll ? 'On' : 'Off';
+  document.getElementById('pl-auto-label').style.color = plAutoScroll ? '#3fb950' : '#484f58';
+}
+
+function plClear() {
+  plSnapshots = [];
+  plSelectedTick = null;
+  document.getElementById('pl-feed').innerHTML = '';
+  document.getElementById('pl-detail').innerHTML = '';
+  document.getElementById('pl-detail-title').textContent = 'Select a tick to inspect';
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function plKV(k, v, cls) {
+  return '<div class="pl-kv"><span class="k">' + escHtml(String(k)) + '</span>' +
+         '<span class="v' + (cls ? ' '+cls : '') + '">' + escHtml(String(v!=null?v:'--')) + '</span></div>';
+}
+
+function plValidationResult(snap) {
+  var vstage = (snap.stages||[]).find(function(s){return s.name==='validation';});
+  return vstage ? (vstage.data.result||'passed') : 'passed';
+}
+
+function plActionLabel(snap) {
+  var vstage = (snap.stages||[]).find(function(s){return s.name==='validation';});
+  if (!vstage) return '?';
+  var act = vstage.data.output_action || {};
+  var a = act.action||'?';
+  if (a==='dig'||a==='cancel_dig') return a+' @('+act.cell_x+','+act.cell_y+')';
+  if (a==='place_building') return 'place '+(act.building_id||'?')+' @('+act.cell_x+','+act.cell_y+')';
+  if (a==='place_perimeter') return 'perimeter ('+act.x1+','+act.y1+')-('+act.x2+','+act.y2+')';
+  return a;
+}
+
+function plAddSnapshot(snap) {
+  if (plSnapshots.some(function(s){return s.tick===snap.tick&&s.cycle===snap.cycle;})) return;
+  plSnapshots.push(snap);
+  if (plSnapshots.length > 100) plSnapshots.shift();
+  plRenderFeedRow(snap);
+  if (plAutoScroll) {
+    plSelectTick(snap.tick);
+    var feed = document.getElementById('pl-feed');
+    if (feed) feed.scrollTop = feed.scrollHeight;
+  }
+}
+
+function plRenderFeedRow(snap) {
+  var feed = document.getElementById('pl-feed');
+  if (!feed) return;
+  var vresult = plValidationResult(snap);
+  var row = document.createElement('div');
+  row.className = 'pl-tick-row';
+  row.setAttribute('data-tick', snap.tick);
+  row.onclick = function() { plSelectTick(snap.tick); };
+  row.innerHTML =
+    '<span class="pl-tick-num">t'+escHtml(String(snap.tick))+'</span>'+
+    '<span class="pl-tick-cycle">c'+escHtml(String(snap.cycle))+'</span>'+
+    '<span class="pl-tick-action">'+escHtml(plActionLabel(snap))+'</span>'+
+    '<span class="pl-badge '+escHtml(vresult)+'">'+escHtml(vresult)+'</span>'+
+    '<span class="pl-tick-ms">'+escHtml(String(snap.elapsed_ms))+'ms</span>';
+  feed.appendChild(row);
+}
+
+function plSelectTick(tick) {
+  plSelectedTick = tick;
+  document.querySelectorAll('.pl-tick-row').forEach(function(row) {
+    row.classList.toggle('selected', parseInt(row.getAttribute('data-tick'))===tick);
+  });
+  var snap = plSnapshots.find(function(s){return s.tick===tick;});
+  if (!snap) return;
+  document.getElementById('pl-detail-title').textContent =
+    'Tick '+snap.tick+' -- Cycle '+snap.cycle+' ('+snap.elapsed_ms+'ms)';
+  var detail = document.getElementById('pl-detail');
+  if (!detail) return;
+  detail.innerHTML = '';
+  (snap.stages||[]).forEach(function(stage) { detail.appendChild(plRenderStageCard(stage)); });
+}
+
+function plRenderStageCard(stage) {
+  var card = document.createElement('div');
+  card.className = 'pl-stage-card';
+  var d = stage.data || {};
+  var header = '<div class="pl-stage-header">'+
+    '<span class="pl-stage-name">'+escHtml(stage.name)+'</span>'+
+    '<span class="pl-stage-label">'+escHtml(stage.label)+'</span>'+
+    '</div>';
+  var body = '';
+  if (stage.name==='state_in') {
+    body = plKV('Cycle',d.cycle)+plKV('Dupes',d.dupes)+
+           plKV('O2 kg',d.o2_kg)+plKV('Alerts',d.alerts,d.alerts>0?'warn':'ok')+
+           plKV('Tile window',d.tile_window);
+  } else if (stage.name==='prompt') {
+    body = plKV('Chars',d.chars)+plKV('Tokens (est)',d.tokens_est)+
+           '<div style="font-size:10px;color:#484f58;margin:4px 0 2px">Preview:</div>'+
+           '<div class="pl-pre">'+escHtml(d.preview||'')+'</div>';
+  } else if (stage.name==='llm_call') {
+    body = plKV('Model',d.model)+plKV('Elapsed',d.elapsed_ms+'ms')+
+           '<div style="font-size:10px;color:#484f58;margin:4px 0 2px">Raw response:</div>'+
+           '<div class="pl-pre">'+escHtml(d.raw_response||'')+'</div>'+
+           '<div style="font-size:10px;color:#484f58;margin:4px 0 2px">Extracted JSON:</div>'+
+           '<div class="pl-pre">'+escHtml(JSON.stringify(d.extracted_json,null,2)||'')+'</div>';
+  } else if (stage.name==='validation') {
+    var cls = d.result==='passed'?'ok':(d.result==='blocked'?'warn':'');
+    body = plKV('Result',d.result,cls)+(d.reason?plKV('Reason',d.reason):'')+
+           '<div style="font-size:10px;color:#484f58;margin:4px 0 2px">Input:</div>'+
+           '<div class="pl-pre">'+escHtml(JSON.stringify(d.input_action,null,2)||'')+'</div>'+
+           '<div style="font-size:10px;color:#484f58;margin:4px 0 2px">Output:</div>'+
+           '<div class="pl-pre">'+escHtml(JSON.stringify(d.output_action,null,2)||'')+'</div>';
+  } else if (stage.name==='sent') {
+    body = '<div class="pl-pre">'+escHtml(JSON.stringify(d.action,null,2)||'')+'</div>';
+  } else if (stage.name==='ack') {
+    body = plKV('Action',d.action)+plKV('Success',d.success?'yes':'no',d.success?'ok':'bad')+
+           (d.error?plKV('Error',d.error,'bad'):'');
+  } else {
+    body = '<div class="pl-pre">'+escHtml(JSON.stringify(d,null,2))+'</div>';
+  }
+  card.innerHTML = header + body;
+  return card;
 }
 
 connect();
