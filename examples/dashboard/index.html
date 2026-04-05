@@ -1225,7 +1225,7 @@ function plKV(k, v, cls) {
 
 function plValidationResult(snap) {
   var vstage = (snap.stages||[]).find(function(s){return s.name==='validation';});
-  return vstage ? (vstage.data.result||'passed') : 'passed';
+  return vstage ? (vstage.data.result||'passed') : 'deduped';
 }
 
 function plActionLabel(snap) {
@@ -1245,7 +1245,7 @@ function plAddSnapshot(snap) {
   if (plSnapshots.length > 100) plSnapshots.shift();
   plRenderFeedRow(snap);
   if (plAutoScroll) {
-    plSelectTick(snap.tick);
+    plSelectTick(snap.tick, snap.cycle);
     var feed = document.getElementById('pl-feed');
     if (feed) feed.scrollTop = feed.scrollHeight;
   }
@@ -1258,7 +1258,8 @@ function plRenderFeedRow(snap) {
   var row = document.createElement('div');
   row.className = 'pl-tick-row';
   row.setAttribute('data-tick', snap.tick);
-  row.onclick = function() { plSelectTick(snap.tick); };
+  row.setAttribute('data-cycle', snap.cycle);
+  row.onclick = function() { plSelectTick(snap.tick, snap.cycle); };
   row.innerHTML =
     '<span class="pl-tick-num">t'+escHtml(String(snap.tick))+'</span>'+
     '<span class="pl-tick-cycle">c'+escHtml(String(snap.cycle))+'</span>'+
@@ -1268,12 +1269,14 @@ function plRenderFeedRow(snap) {
   feed.appendChild(row);
 }
 
-function plSelectTick(tick) {
+function plSelectTick(tick, cycle) {
   plSelectedTick = tick;
   document.querySelectorAll('.pl-tick-row').forEach(function(row) {
-    row.classList.toggle('selected', parseInt(row.getAttribute('data-tick'))===tick);
+    row.classList.toggle('selected',
+      parseInt(row.getAttribute('data-tick'))===tick &&
+      parseInt(row.getAttribute('data-cycle'))===cycle);
   });
-  var snap = plSnapshots.find(function(s){return s.tick===tick;});
+  var snap = plSnapshots.find(function(s){return s.tick===tick&&s.cycle===cycle;});
   if (!snap) return;
   document.getElementById('pl-detail-title').textContent =
     'Tick '+snap.tick+' -- Cycle '+snap.cycle+' ('+snap.elapsed_ms+'ms)';
@@ -1319,7 +1322,7 @@ function plRenderStageCard(stage) {
     body = plKV('Action',d.action)+plKV('Success',d.success?'yes':'no',d.success?'ok':'bad')+
            (d.error?plKV('Error',d.error,'bad'):'');
   } else {
-    body = '<div class="pl-pre">'+escHtml(JSON.stringify(d,null,2))+'</div>';
+    body = '<div class="pl-pre">'+escHtml(JSON.stringify(d,null,2)||'')+'</div>';
   }
   card.innerHTML = header + body;
   return card;
