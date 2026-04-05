@@ -42,6 +42,10 @@ from src.agent.reward import RewardCalculator, format_colony_health
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler("runner.log", mode="w"),
+    ],
 )
 logger = logging.getLogger("oni.runner")
 
@@ -378,18 +382,30 @@ async def run(
             await client.send_action(action)
             relay.pending_action = action
 
-            # Read ACK (non-blocking peek — ACK arrives on the same TCP stream,
-            # but state_stream() only yields state messages.  We handle the raw
-            # ACK inside BridgeClient by extending state_stream to pass acks through.)
-            # For now, log optimistically and let the next state confirm success.
-            ack_log = f"[{tick}] {action.get('action')}" + (
-                f" {action.get('building_id','')} @({action.get('cell_x','')},{action.get('cell_y','')})"
-                if action.get('action') == 'place_building' else
-                f" @({action.get('cell_x','')},{action.get('cell_y','')})"
-                if action.get('cell_x') is not None else ""
-            )
+            # Build a rich log entry for the dashboard
+            act = action.get("action", "?")
+            if act == "place_building":
+                act_str = f"place {action.get('building_id','')} @({action.get('cell_x','')},{action.get('cell_y','')})"
+            elif act in ("dig", "cancel_dig"):
+                act_str = f"{act} @({action.get('cell_x','')},{action.get('cell_y','')})"
+            elif act == "place_perimeter":
+                act_str = f"place_perimeter ({action.get('x1','')},{action.get('y1','')}) goal={action.get('goal','')}"
+            elif act == "no_op":
+                act_str = "no_op"
+            else:
+                act_str = act
+
+            src = "manual" if manual else "ai"
+            ack_log = f"[t{tick}|c{cycle}] [{src}] {act_str}"
             relay.append_log(ack_log)
-            await relay.broadcast({"type": "ack", "log": relay.log[-20:], "last_action": action})
+            await relay.broadcast({
+                "type": "ack",
+                "log": relay.log[-20:],
+                "last_action": action,
+                "ledger": ledger.format_context(),
+                "tick": tick,
+                "cycle": cycle,
+            })
 
             if episode_log is not None:
                 log_entries.append({

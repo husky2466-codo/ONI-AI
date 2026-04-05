@@ -493,7 +493,17 @@ function handleMessage(msg) {
   } else if (msg.type === 'ack') {
     var ok = msg.success !== false;
     if (ok) { sessionStats.ackOk++; } else { sessionStats.ackFail++; }
-    addLogEntry(ok ? 'ack-ok' : 'ack-fail', (msg.action || '') + ' → ' + (ok ? 'success' : (msg.error || 'failed')));
+    // Show the full action log entries from runner if present, otherwise fall back to raw ack
+    if (msg.log && msg.log.length) {
+      var latest = msg.log[msg.log.length - 1];
+      addLogEntry('action', latest);
+    } else {
+      addLogEntry(ok ? 'ack-ok' : 'ack-fail', (msg.action || '') + ' → ' + (ok ? 'success' : (msg.error || 'failed')));
+    }
+    // Show ledger context update
+    if (msg.ledger) {
+      addLogEntry('agent', msg.ledger);
+    }
     renderLog();
   } else if (msg.type === 'runner_status') {
     var running = msg.running;
