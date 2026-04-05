@@ -152,9 +152,16 @@ ManualGenerator → Wire → Battery → Wire → (OxygenDiffuser, MicrobeMusher
 Use perimeters to declare a focused construction zone. One active perimeter at a time.
   place_perimeter: declare a build zone with a goal. The task board will tell you what to build.
   abandon_perimeter: cancel current perimeter (auto-abandon happens at 100% completion).
-Goals: "base_camp", "survival", "oxygen_production"
-When a perimeter is active, follow the task board — build the listed buildings in order.
-Do NOT place_perimeter if one is already active (it will be rejected).
+
+Goals and MINIMUM sizes (x2-x1 >= w, y2-y1 >= h):
+  "survival" / "base_camp": min 10 wide x 6 tall
+  "oxygen_production":       min 6 wide x 4 tall
+
+CRITICAL: If the Spatial Ledger says "no blueprint matched" — abandon the perimeter immediately
+and place a new one at the correct minimum size.
+
+When a perimeter is active with a loaded task board, follow it exactly — dig listed cells first,
+then place buildings in order. Do NOT place_perimeter if one is already active.
 
 ## Response format
 Output ONLY a single JSON object — no explanation, no markdown, no code fences:

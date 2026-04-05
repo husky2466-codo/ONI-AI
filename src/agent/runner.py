@@ -287,6 +287,14 @@ async def run(
                 await client.send_action(build_abandon_perimeter())
                 relay.pending_action = build_abandon_perimeter()
 
+            # Auto-abandon: perimeter placed but no blueprint matched — useless, clear it
+            if ledger.active is not None and not ledger.active.blueprint_id:
+                logger.warning("Perimeter has no matching blueprint — auto-abandoning")
+                ledger.on_abandon(cycle)
+                await client.send_action(build_abandon_perimeter())
+                relay.pending_action = build_abandon_perimeter()
+                continue
+
             # Reward calculation
             tick_reward = reward_calc.tick(state.data)
             episode_reward = reward_calc.episode_total

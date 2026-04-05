@@ -390,6 +390,9 @@ class SpatialLedger:
                     lines.append(f"  Next: {t}")
                 for pr in tb.prerequisites[:3]:
                     lines.append(f"  Needs: {pr}")
+            elif not self.active.blueprint_id:
+                lines.append("  WARNING: no blueprint matched this perimeter size/goal.")
+                lines.append("  Abandon it and place a new one: min 10 wide x 6 tall, goal=survival.")
             else:
                 lines.append("  (task board loading...)")
         else:
