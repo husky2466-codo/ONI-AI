@@ -44,7 +44,7 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler("runner.log", mode="w"),
+        logging.FileHandler(str(Path(__file__).parents[2] / "runner.log"), mode="w"),
     ],
 )
 logger = logging.getLogger("oni.runner")
@@ -361,6 +361,10 @@ async def run(
                 # so we act on the freshest snapshot — but use state.data for the prompt
                 # since that's what we reasoned about.
                 loop = asyncio.get_event_loop()
+                last_ack_dict = (
+                    {"action": client.last_ack.action, "success": client.last_ack.success, "error": client.last_ack.error}
+                    if client.last_ack else None
+                )
                 candidate = await loop.run_in_executor(
                     _llm_executor,
                     lambda: agent.decide(
@@ -368,6 +372,7 @@ async def run(
                         pending_action=relay.pending_action,
                         ledger_context=ledger.format_context(),
                         colony_health=colony_health,
+                        last_ack=last_ack_dict,
                     ),
                 )
                 # Hard block: never send place_perimeter when one is already active.

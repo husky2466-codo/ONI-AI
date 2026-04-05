@@ -178,7 +178,7 @@ Output ONLY a single JSON object — no explanation, no markdown, no code fences
 """
 
 
-def _format_state(data: dict[str, Any], pending_action: "dict | None" = None, ledger_context: str = "", colony_health: str = "") -> str:
+def _format_state(data: dict[str, Any], pending_action: "dict | None" = None, ledger_context: str = "", colony_health: str = "", last_ack: "dict | None" = None) -> str:
     """Format a state snapshot dict into a concise prompt string."""
     res = data.get("resources", {})
     dups = data.get("duplicants", [])
@@ -242,6 +242,13 @@ def _format_state(data: dict[str, Any], pending_action: "dict | None" = None, le
         lines.append("MISSING survival buildings (build these NOW):")
         for s in survival:
             lines.append(f"  ! {s}")
+
+    if last_ack:
+        status = "OK" if last_ack.get("success") else f"FAILED: {last_ack.get('error', 'unknown')}"
+        lines.append("")
+        lines.append(f"Last action result: {last_ack.get('action','?')} → {status}")
+        if not last_ack.get("success"):
+            lines.append("  ^ This action failed — do NOT repeat it. Choose a different action.")
 
     if pending_action:
         act = pending_action.get("action", "?")
@@ -350,6 +357,7 @@ class LLMAgent:
         pending_action: "dict | None" = None,
         ledger_context: str = "",
         colony_health: str = "",
+        last_ack: "dict | None" = None,
     ) -> dict[str, Any]:
         """
         Given a state snapshot dict, return an ActionCommand dict.
@@ -360,6 +368,7 @@ class LLMAgent:
             pending_action=pending_action,
             ledger_context=ledger_context,
             colony_health=colony_health,
+            last_ack=last_ack,
         )
 
         try:

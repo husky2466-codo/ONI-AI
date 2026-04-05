@@ -5,7 +5,7 @@ import logging
 from collections.abc import AsyncIterator
 from typing import Any
 
-from src.agent.protocol import build_no_op, parse_state_message, StateMessage
+from src.agent.protocol import build_no_op, parse_message, parse_state_message, StateMessage, AckMessage
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +19,7 @@ class BridgeClient:
         self.reconnect_delay = reconnect_delay
         self._reader: asyncio.StreamReader | None = None
         self._writer: asyncio.StreamWriter | None = None
+        self.last_ack: AckMessage | None = None  # most recent ack from game
 
     async def connect(self) -> None:
         """Connect (or reconnect) to the game bridge. Retries until successful."""
@@ -61,8 +62,12 @@ class BridgeClient:
                 raw = line.decode("utf-8").strip()
                 if not raw:
                     continue
-                msg = parse_state_message(raw)
-                if msg is not None:
+                msg = parse_message(raw)
+                if isinstance(msg, AckMessage):
+                    self.last_ack = msg
+                    logger.info("ACK: action=%s success=%s error=%s",
+                                msg.action, msg.success, msg.error)
+                elif isinstance(msg, StateMessage):
                     yield msg
             except (ConnectionResetError, BrokenPipeError):
                 logger.warning("Connection reset — reconnecting")

@@ -30,22 +30,40 @@ class StateMessage:
     data: dict[str, Any]
 
 
-def parse_state_message(raw: str) -> "StateMessage | None":
-    """Parse a raw JSON line from the game. Returns StateMessage or None if not a state message."""
+@dataclass
+class AckMessage:
+    action: str
+    success: bool
+    error: str | None
+
+
+def parse_message(raw: str) -> "StateMessage | AckMessage | None":
+    """Parse a raw JSON line from the game. Returns StateMessage, AckMessage, or None."""
     try:
         msg = json.loads(raw)
     except json.JSONDecodeError as e:
         raise ValueError(f"Invalid JSON: {e}") from e
 
-    if msg.get("type") != "state":
-        return None
+    if msg.get("type") == "state":
+        data = msg.get("data", {})
+        return StateMessage(
+            cycle=int(data.get("cycle", 0)),
+            time=float(data.get("time", 0.0)),
+            data=data,
+        )
+    elif msg.get("type") == "ack":
+        return AckMessage(
+            action=str(msg.get("action", "")),
+            success=bool(msg.get("success", True)),
+            error=msg.get("error"),
+        )
+    return None
 
-    data = msg.get("data", {})
-    return StateMessage(
-        cycle=int(data.get("cycle", 0)),
-        time=float(data.get("time", 0.0)),
-        data=data,
-    )
+
+def parse_state_message(raw: str) -> "StateMessage | None":
+    """Legacy: parse only state messages."""
+    result = parse_message(raw)
+    return result if isinstance(result, StateMessage) else None
 
 
 def build_action(action: str, **kwargs: Any) -> dict[str, Any]:
