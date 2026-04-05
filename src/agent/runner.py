@@ -512,10 +512,11 @@ async def run(
                 # Coordinate validation: reject dig on cells that are already open.
                 # Build solid-cell lookup from current tile window.
                 if candidate.get("action") == "dig":
+                    _dig_cx, _dig_cy = candidate.get("cell_x"), candidate.get("cell_y")
                     _validated = _validate_dig(candidate, state.data)
                     if _validated.get("action") == "no_op":
                         _validation_result = "blocked"
-                        _validation_reason = f"cell ({candidate.get('cell_x')},{candidate.get('cell_y')}) is not solid"
+                        _validation_reason = f"cell ({_dig_cx},{_dig_cy}) is not solid"
                         candidate = _validated
 
                 # Suppress repeated identical non-no_op AI actions for _DEDUP_TTL ticks
