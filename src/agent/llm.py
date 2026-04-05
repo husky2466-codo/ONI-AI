@@ -358,10 +358,10 @@ class LLMAgent:
         ledger_context: str = "",
         colony_health: str = "",
         last_ack: "dict | None" = None,
-    ) -> dict[str, Any]:
+    ) -> "tuple[dict[str, Any], str, str]":
         """
-        Given a state snapshot dict, return an ActionCommand dict.
-        Falls back to no_op on any failure.
+        Given a state snapshot dict, return (action_dict, prompt_text, raw_llm_response).
+        Falls back to (no_op, prompt, "") on any failure.
         """
         prompt = _format_state(
             state_data,
@@ -392,11 +392,11 @@ class LLMAgent:
             raw = raw.strip()
             logger.info("LLM prompt:\n%s", prompt)
             logger.info("LLM raw response: %s", raw)
-            return self._parse_action(raw)
+            return self._parse_action(raw), prompt, raw
 
         except Exception as e:
             logger.warning("LLM call failed: %s — sending no_op", e)
-            return build_no_op()
+            return build_no_op(), prompt, ""
 
     def _parse_action(self, raw: str) -> dict[str, Any]:
         """Parse the model's JSON response into a valid action dict."""
