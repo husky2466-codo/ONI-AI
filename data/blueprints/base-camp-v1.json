@@ -2,7 +2,7 @@
   "id": "base-camp-v1",
   "name": "Basic Base Camp (Outhouse, Beds, Power, O2, Food)",
   "goals": ["base_camp", "survival"],
-  "min_size": { "w": 10, "h": 6 },
+  "min_size": { "w": 12, "h": 8 },
   "buildings": [
     {
       "type": "Outhouse",
