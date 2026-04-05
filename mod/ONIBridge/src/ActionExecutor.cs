@@ -33,19 +33,24 @@ namespace ONIBridge
                         break;
                     case "place_perimeter":
                     {
+                        string id = cmd.GetString("id") ?? System.Guid.NewGuid().ToString("N").Substring(0, 8);
                         int x1 = cmd.GetInt("x1"), y1 = cmd.GetInt("y1");
                         int x2 = cmd.GetInt("x2"), y2 = cmd.GetInt("y2");
                         string goal = cmd.GetString("goal") ?? "unknown";
-                        bool ok = PerimeterManager.Place(x1, y1, x2, y2, goal);
-                        if (ok)
+                        int priority = cmd.GetInt("priority");
+                        if (priority < 1 || priority > 9) priority = 5;
+                        string result = PerimeterManager.Place(id, x1, y1, x2, y2, goal, priority);
+                        if (result == "placed")
                             BridgeServer.Instance.SendAck(cmd.Action, true);
                         else
-                            BridgeServer.Instance.SendAck(cmd.Action, false, "perimeter_already_active");
+                            BridgeServer.Instance.SendAck(cmd.Action, false, result);
                         break;
                     }
                     case "abandon_perimeter":
                     {
-                        PerimeterManager.Abandon();
+                        string id = cmd.GetString("id") ?? "";
+                        if (!string.IsNullOrEmpty(id))
+                            PerimeterManager.Abandon(id);
                         BridgeServer.Instance.SendAck(cmd.Action, true);
                         break;
                     }

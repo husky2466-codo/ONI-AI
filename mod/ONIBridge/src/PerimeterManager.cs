@@ -1,64 +1,67 @@
+using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace ONIBridge
 {
     /// <summary>
-    /// Mod-side only. Stores the single active perimeter bounding box.
-    /// No game sim interaction — dupes cannot see or interact with it.
-    /// Completion detection is handled Python-side; Python sends abandon_perimeter
-    /// when auto-complete triggers.
+    /// Stores all active build zones (max 5), sorted by priority descending.
+    /// No game sim interaction — dupes cannot see or interact with zones.
+    /// Completion detection is handled Python-side; Python sends abandon_perimeter(id)
+    /// when auto-complete triggers or the agent explicitly abandons.
     /// </summary>
     public static class PerimeterManager
     {
-        public static PerimeterData Active { get; private set; } = null;
+        private static readonly List<PerimeterData> _zones = new List<PerimeterData>();
+
+        public static IReadOnlyList<PerimeterData> Zones => _zones;
+
+        /// <summary>Highest-priority zone — tile window follows this one.</summary>
+        public static PerimeterData Focused => _zones.Count > 0 ? _zones[0] : null;
 
         /// <summary>
-        /// Place a new perimeter. Returns false if one is already active.
+        /// Place a new zone. Returns "placed" on success, or a rejection reason string.
         /// </summary>
-        public static bool Place(int x1, int y1, int x2, int y2, string goal)
+        public static string Place(string id, int x1, int y1, int x2, int y2, string goal, int priority)
         {
-            if (Active != null)
+            if (_zones.Count >= 5)
             {
-                Debug.LogWarning("[ONIBridge] place_perimeter rejected — perimeter already active");
-                return false;
+                Debug.LogWarning("[ONIBridge] place_perimeter rejected — zone cap (5) reached");
+                return "rejected_zone_cap";
             }
-            Active = new PerimeterData
+            _zones.Add(new PerimeterData
             {
-                Id     = System.Guid.NewGuid().ToString("N").Substring(0, 8),
-                X1     = x1,
-                Y1     = y1,
-                X2     = x2,
-                Y2     = y2,
-                Goal   = goal,
-                Status = "active",
-            };
-            Debug.Log($"[ONIBridge] Perimeter placed: {Active.Id} goal={goal} bounds=({x1},{y1})-({x2},{y2})");
-            return true;
+                Id = id,
+                X1 = x1, Y1 = y1, X2 = x2, Y2 = y2,
+                Goal = goal,
+                Priority = priority,
+            });
+            _zones.Sort((a, b) => b.Priority.CompareTo(a.Priority));
+            Debug.Log($"[ONIBridge] Zone placed: {id} goal={goal} priority={priority} bounds=({x1},{y1})-({x2},{y2})");
+            return "placed";
         }
 
-        /// <summary>
-        /// Abandon the active perimeter (auto-complete or explicit abandon).
-        /// </summary>
-        public static void Abandon()
+        /// <summary>Abandon a specific zone by id.</summary>
+        public static void Abandon(string id)
         {
-            if (Active != null)
-                Debug.Log($"[ONIBridge] Perimeter abandoned: {Active.Id}");
-            Active = null;
+            int removed = _zones.RemoveAll(z => z.Id == id);
+            if (removed > 0)
+                Debug.Log($"[ONIBridge] Zone abandoned: {id}");
+            else
+                Debug.LogWarning($"[ONIBridge] abandon_perimeter: zone {id} not found");
         }
 
-        /// <summary>
-        /// Produces the perimeter payload for the state message. Returns null when no perimeter active.
-        /// </summary>
+        /// <summary>Produces the zones array for the state message.</summary>
         public static object Serialize()
         {
-            if (Active == null) return null;
-            return new
+            return _zones.Select(z => (object)new
             {
-                id     = Active.Id,
-                goal   = Active.Goal,
-                bounds = new { x1 = Active.X1, y1 = Active.Y1, x2 = Active.X2, y2 = Active.Y2 },
-                status = Active.Status,
-            };
+                id       = z.Id,
+                goal     = z.Goal,
+                bounds   = new { x1 = z.X1, y1 = z.Y1, x2 = z.X2, y2 = z.Y2 },
+                priority = z.Priority,
+                status   = "active",
+            }).ToList();
         }
     }
 
@@ -67,6 +70,6 @@ namespace ONIBridge
         public string Id;
         public int X1, Y1, X2, Y2;
         public string Goal;
-        public string Status;  // "active" | "abandoned"
+        public int Priority;
     }
 }

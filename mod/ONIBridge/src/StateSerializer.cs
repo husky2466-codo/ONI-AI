@@ -42,7 +42,7 @@ namespace ONIBridge
                 rooms          = TryGet("rooms",           GetRooms,          new List<object>()),
                 alerts         = TryGet("alerts",          GetAlerts,         new List<string>()),
                 tiles          = TryGet("tiles",           GetTiles,          (object)new {}),
-                perimeter      = TryGet("perimeter",       GetPerimeter,      (object)null),
+                zones          = TryGet("zones",           GetZones,          new System.Collections.Generic.List<object>()),
             };
         }
 
@@ -556,7 +556,7 @@ namespace ONIBridge
             int wx, wy, ex, ey;
 
             // If a perimeter is active, center the tile window on it (+ 5 tile padding)
-            var perim = PerimeterManager.Active;
+            var perim = PerimeterManager.Focused;
             if (perim != null)
             {
                 const int PAD = 5;
@@ -674,9 +674,9 @@ namespace ONIBridge
         }
 
         // ------------------------------------------------------------------ //
-        // Perimeter
+        // Zones
 
-        private static object GetPerimeter()
+        private static object GetZones()
         {
             return PerimeterManager.Serialize();
         }

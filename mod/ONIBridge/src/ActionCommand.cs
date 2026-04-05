@@ -46,6 +46,10 @@ namespace ONIBridge
         [JsonProperty("y2")]
         public int Y2 { get; set; }
 
+        // Perimeter zone id (Python-generated 8-char hex)
+        [JsonProperty("id")]
+        public string? Id { get; set; }
+
         // Perimeter goal (e.g. "oxygen_production")
         [JsonProperty("goal")]
         public string? Goal { get; set; }
@@ -90,6 +94,7 @@ namespace ONIBridge
         {
             switch (field)
             {
+                case "id": return Id;
                 case "goal": return Goal;
                 case "tech_id": return TechId;
                 case "building_id": return BuildingId;
