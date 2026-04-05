@@ -134,13 +134,23 @@ def _cells_needing_dig(blueprint: dict, state: dict, bounds: dict) -> list[tuple
         tile_mass[(cx, cy)] = float(mass)
 
     needs_dig = []
+    not_in_window = []
     for entry in dig_required:
         ax = origin_x + entry["rel_x"]
         ay = origin_y + entry["rel_y"]
         mass = tile_mass.get((ax, ay), -1.0)
-        # mass > 0 means solid ground; -1 means not in tile window (assume uncleared)
-        if mass != 0.0:
+        if mass > 0:
             needs_dig.append((ax, ay))
+        elif mass < 0:
+            not_in_window.append((ax, ay))
+        # mass == 0: confirmed open, skip
+
+    if not_in_window:
+        logger.warning(
+            "_cells_needing_dig: %d dig_required cells not in tile window — "
+            "tile window may not cover perimeter. First few: %s",
+            len(not_in_window), not_in_window[:5]
+        )
 
     return needs_dig
 
