@@ -31,9 +31,10 @@ def test_summarize_tiles_counts_elements():
         ]
     }
     summary = _summarize_tiles(tiles)
-    assert "Sandstone" in summary
-    assert "Oxygen" in summary
-    assert "6" in summary
+    # New format: lists solid-cell coords, not element names
+    assert "Solid tiles" in summary
+    assert "(100,190)" in summary   # first solid cell
+    assert "5" in summary           # 5 solid cells (Vacuum excluded)
 
 
 def test_summarize_tiles_missing_returns_none():
@@ -49,7 +50,7 @@ def test_format_state_includes_tile_summary():
     state = _make_state(tiles=tiles)
     output = _format_state(state)
     assert "Tile window" in output
-    assert "Sandstone" in output
+    assert "(100,190)" in output   # solid cell coord listed
 
 
 def test_format_state_no_tiles_section_when_absent():

@@ -242,6 +242,60 @@ _DEDUP_TTL = 3  # suppress identical AI actions for this many ticks
 _llm_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="llm")
 
 
+def _build_solid_cells(state_data: dict) -> set[tuple[int, int]]:
+    """Return the set of (x, y) cells that have solid mass in the current tile window."""
+    tiles = state_data.get("tiles", {})
+    data = tiles.get("data", [])
+    x0 = tiles.get("x", 0)
+    y0 = tiles.get("y", 0)
+    w = tiles.get("w", 0)
+    solid: set[tuple[int, int]] = set()
+    for idx, entry in enumerate(data):
+        mass = float(entry[1]) if isinstance(entry, (list, tuple)) and len(entry) >= 2 else 0.0
+        if mass > 0:
+            col = idx % w if w else 0
+            row = idx // w if w else 0
+            solid.add((x0 + col, y0 + row))
+    return solid
+
+
+def _validate_dig(action: dict, state_data: dict) -> dict:
+    """
+    Block dig actions targeting cells that are already open (mass == 0 or not solid).
+    If the target cell is confirmed open, returns no_op instead.
+    If the cell is outside the tile window, passes through — we can't confirm either way.
+    """
+    cx = action.get("cell_x")
+    cy = action.get("cell_y")
+    if cx is None or cy is None:
+        return action
+
+    tiles = state_data.get("tiles", {})
+    tx = tiles.get("x", 0)
+    ty = tiles.get("y", 0)
+    tw = tiles.get("w", 0)
+    th = tiles.get("h", 0)
+
+    # Is the cell even in the tile window?
+    in_window = (tx <= cx < tx + tw) and (ty <= cy < ty + th)
+    if not in_window:
+        logger.warning(
+            "  -> _validate_dig: (%d,%d) outside tile window (%d-%d, %d-%d) — passing through",
+            cx, cy, tx, tx + tw, ty, ty + th,
+        )
+        return action
+
+    solid = _build_solid_cells(state_data)
+    if (cx, cy) not in solid:
+        logger.warning(
+            "  -> _validate_dig: (%d,%d) is not solid — blocking dig, sending no_op",
+            cx, cy,
+        )
+        return build_no_op()
+
+    return action
+
+
 async def run(
     host: str,
     port: int,
@@ -381,6 +435,11 @@ async def run(
                 if candidate.get("action") == "place_perimeter" and ledger.active is not None:
                     logger.info("  -> runner blocked place_perimeter (perimeter already active)")
                     candidate = build_no_op()
+
+                # Coordinate validation: reject dig on cells that are already open.
+                # Build solid-cell lookup from current tile window.
+                if candidate.get("action") == "dig":
+                    candidate = _validate_dig(candidate, state.data)
 
                 # Suppress repeated identical non-no_op AI actions for _DEDUP_TTL ticks
                 if (candidate == last_ai_action
