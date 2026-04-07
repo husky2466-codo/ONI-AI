@@ -1,0 +1,1260 @@
+{
+  "project": "ONI-AI",
+  "path": "/Volumes/DevDrive-M4Pro/Projects/ONI-AI",
+  "branch": "main",
+  "updatedAt": "2026-04-06T23:04:17.177Z",
+  "filesChanged": 0,
+  "commits": [
+    {
+      "hash": "86b887c6b44f06b130f93abf0b3a6fcc3d9d05bf",
+      "message": "feat: C# mod multi-zone PerimeterManager, zones[] state field, id-targeted abandon",
+      "timestamp": "2026-04-05 00:57:18 -0400"
+    },
+    {
+      "hash": "66a90b3765ceb3f5592d941537d1d1b7c472ea48",
+      "message": "fix: bump base-camp-v1 min_size to 12x8 to satisfy 1-tile padding rule",
+      "timestamp": "2026-04-05 00:55:56 -0400"
+    },
+    {
+      "hash": "11aeb38c6cb0276fa564b49b1c504925436b4cf1",
+      "message": "feat: update system prompt for multi-zone perimeter — id, priority, new min sizes",
+      "timestamp": "2026-04-05 00:55:34 -0400"
+    },
+    {
+      "hash": "22e9037cb388f21356497e363727dff20021390f",
+      "message": "feat: runner multi-zone autocomplete loop and validate_place pre-flight",
+      "timestamp": "2026-04-05 00:54:18 -0400"
+    },
+    {
+      "hash": "fcb7d95fbf7fdd0338e8c92b4954c07e80f0541e",
+      "message": "feat: add id+priority to build_place_perimeter, zone_id to build_abandon_perimeter",
+      "timestamp": "2026-04-05 00:53:16 -0400"
+    },
+    {
+      "hash": "8da21a9286e88a55a59df2443cbd80386302211a",
+      "message": "fix: guard against duplicate auto-complete archive on back-to-back ticks",
+      "timestamp": "2026-04-05 00:51:40 -0400"
+    },
+    {
+      "hash": "412d62f8f93ddc0ff5c49b392dff50a21e4e8fb2",
+      "message": "feat: replace single-zone SpatialLedger with multi-zone ActiveZone + validate_place",
+      "timestamp": "2026-04-05 00:49:00 -0400"
+    },
+    {
+      "hash": "e51c243a9a9e5a003f06f35b0138534680261a59",
+      "message": "docs: spatial perimeter system v2 implementation plan",
+      "timestamp": "2026-04-05 00:39:22 -0400"
+    },
+    {
+      "hash": "a7c6def536b16caeb598fde38b4262e96dd233e9",
+      "message": "docs: spatial perimeter system v2 spec — multi-zone, priority ordering, edge math fix",
+      "timestamp": "2026-04-05 00:33:18 -0400"
+    },
+    {
+      "hash": "33cb36236cb42486134cbf64050c0301170e853c",
+      "message": "fix: expand prompt preview to 3000 chars, increase pl-pre max-height to 400px",
+      "timestamp": "2026-04-04 22:20:36 -0400"
+    },
+    {
+      "hash": "9a4d56568781c2be9a742bdea0d1e68e0c7e984f",
+      "message": "feat: add Restart/Stop runner buttons to persistent status bar",
+      "timestamp": "2026-04-04 22:18:35 -0400"
+    },
+    {
+      "hash": "66a1d4a924181f19b63628b530d41176b7084cd6",
+      "message": "feat: add starting-buildings reference table to system prompt (Telepad, RationBox, etc.)",
+      "timestamp": "2026-04-04 22:13:55 -0400"
+    },
+    {
+      "hash": "118981db8ab0e5007c048619193f953150190aed",
+      "message": "fix: tag spawned buildings in prompt, fix false food-source warning when RationBox present",
+      "timestamp": "2026-04-04 22:12:47 -0400"
+    },
+    {
+      "hash": "9b478fe84391d5370cf1ec9941a3ede563421916",
+      "message": "docs: add building telemetry prompt fix implementation plan",
+      "timestamp": "2026-04-04 22:08:30 -0400"
+    },
+    {
+      "hash": "808265b66a4e9ffd4f4cf9efeba18c7ff943658b",
+      "message": "docs: add building telemetry prompt fix spec",
+      "timestamp": "2026-04-04 22:07:24 -0400"
+    },
+    {
+      "hash": "5b16141e891f0dcc9058124d764a568c730a9f4e",
+      "message": "docs: observability spec + NeMo Gym integration spec",
+      "timestamp": "2026-04-05 01:53:23 +0000"
+    },
+    {
+      "hash": "ef83d5c6c4da192cc85ea579cb9ba44fb1870441",
+      "message": "fix: pipeline tab - compound tick+cycle key, neutral badge for missing validation, JSON fallback guard",
+      "timestamp": "2026-04-04 21:38:56 -0400"
+    },
+    {
+      "hash": "cc15e360ac9adc31e63b0310138c6e4e31bf6f5f",
+      "message": "feat: add Pipeline inspector tab to dashboard with tick feed and stage detail",
+      "timestamp": "2026-04-04 21:36:21 -0400"
+    },
+    {
+      "hash": "eb94cea98b1a52b5ff48d3ab2c40b4b13771010f",
+      "message": "feat: server.py stores and relays pipeline snapshots to browser clients",
+      "timestamp": "2026-04-04 21:29:12 -0400"
+    },
+    {
+      "hash": "75cb467c659237d6323a2bf58f1846fb32dd5f63",
+      "message": "fix: capture dig coords before candidate reassignment in validation chain",
+      "timestamp": "2026-04-04 21:28:23 -0400"
+    },
+    {
+      "hash": "3e0943cb15a2891a814cd225d5c6f686378a4df0",
+      "message": "feat: add PipelineSnapshot to runner, broadcast pipeline message per tick",
+      "timestamp": "2026-04-04 21:25:17 -0400"
+    },
+    {
+      "hash": "248d074beeb4a6e1d85198d825282dd8f5731e13",
+      "message": "fix: add non-noop action test, unquote tuple type annotation in decide()",
+      "timestamp": "2026-04-04 21:22:55 -0400"
+    },
+    {
+      "hash": "7f75ad57353f0ae1bb4017fcb61c40774b0c57fd",
+      "message": "feat: decide() returns (action, prompt, raw_response) tuple for pipeline inspector",
+      "timestamp": "2026-04-04 21:20:51 -0400"
+    },
+    {
+      "hash": "49f017cadb00c55c11690234c2716f44bf348425",
+      "message": "docs: pipeline inspector spec and implementation plan",
+      "timestamp": "2026-04-04 21:19:30 -0400"
+    },
+    {
+      "hash": "6b868f7e36509d64c27653c6325e701657512479",
+      "message": "feat: add dig coordinate validation to block LLM hallucinated open-cell digs",
+      "timestamp": "2026-04-04 20:40:21 -0400"
+    },
+    {
+      "hash": "808eec9a2adfa08a55f97e7ffdc389f10ad39e95",
+      "message": "feat: wire game acks into LLM prompt as feedback",
+      "timestamp": "2026-04-04 20:32:55 -0400"
+    },
+    {
+      "hash": "464601ce853ce80b6e23060c116eb078f1a11c6f",
+      "message": "fix: don't assume not-in-window dig cells are solid, log warning",
+      "timestamp": "2026-04-04 20:29:19 -0400"
+    },
+    {
+      "hash": "81920fc695fde44c7f8dd5851f82675a015c642c",
+      "message": "fix: replace tile aggregate summary with per-cell solid tile list",
+      "timestamp": "2026-04-04 20:26:23 -0400"
+    },
+    {
+      "hash": "7b43e553294bf4ce685c62e663447d14887fdb11",
+      "message": "fix: replace misleading speed labels with chevrons",
+      "timestamp": "2026-04-04 20:25:06 -0400"
+    },
+    {
+      "hash": "aa07f4b0855d72723ed922e43561082f28d1f75c",
+      "message": "fix: prevent abandon_perimeter flood when no blueprint matched",
+      "timestamp": "2026-04-04 20:19:16 -0400"
+    },
+    {
+      "hash": "5a81784bf61e972d2e1e6f25ac1f4ef9b4244777",
+      "message": "fix: handle no-blueprint perimeter — auto-abandon and tell LLM correct sizes",
+      "timestamp": "2026-04-04 20:16:36 -0400"
+    },
+    {
+      "hash": "1dd951d10397867083d0545d60c200c67bfef4fe",
+      "message": "feat: richer dashboard log + runner.log file output",
+      "timestamp": "2026-04-04 20:13:39 -0400"
+    },
+    {
+      "hash": "d6ece67cb975d7e01959ced879b7a6193bb6f624",
+      "message": "fix: flip tile canvas vertically to match ONI coordinate system",
+      "timestamp": "2026-04-04 20:11:27 -0400"
+    },
+    {
+      "hash": "654f50273d009c5b2fe5183e466605ff8010586a",
+      "message": "fix: center tile window on dupes when no buildings exist",
+      "timestamp": "2026-04-04 20:03:29 -0400"
+    },
+    {
+      "hash": "996bdc01bc58ecd103a0e9c6eb1485bb37760808",
+      "message": "fix: hard-block place_perimeter in runner when perimeter is already active",
+      "timestamp": "2026-04-04 19:55:00 -0400"
+    },
+    {
+      "hash": "658e35d39240151c20726139a94592eb9b841949",
+      "message": "fix: run LLM call in thread executor, reduce dedup TTL",
+      "timestamp": "2026-04-04 19:51:38 -0400"
+    },
+    {
+      "hash": "5a17bf102a8c4ecb5db76c087e847238b6f7b24d",
+      "message": "fix: evict stale state from send queue instead of dropping all",
+      "timestamp": "2026-04-04 19:47:26 -0400"
+    },
+    {
+      "hash": "491c24cd46e6f6f6d5fb3c9fefa447a69cea9c69",
+      "message": "fix: prevent game freeze and stale state burst",
+      "timestamp": "2026-04-04 19:41:59 -0400"
+    },
+    {
+      "hash": "0352395013115ce55180cf96bcf908ca80de52f4",
+      "message": "feat: default LLM profiles (DGX-A, DGX-B, Gemini) in dashboard, --endpoint/--model wired through runner",
+      "timestamp": "2026-04-04 19:30:17 -0400"
+    },
+    {
+      "hash": "4fb92f6fc56e9172162447d91ed4c18a8d08b744",
+      "message": "refactor: swap google-genai for openai-compatible client, wire --endpoint and --model through runner",
+      "timestamp": "2026-04-04 19:29:52 -0400"
+    },
+    {
+      "hash": "3de6b62dae760111f536ab46d39f4061ebd96bd2",
+      "message": "fix: task board now emits dig tasks before build tasks for uncleared cells",
+      "timestamp": "2026-04-04 19:05:28 -0400"
+    },
+    {
+      "hash": "b42e31be09d30373f16a3d2e04ffaac61d39119b",
+      "message": "Merge pull request #10 from husky2466-codo/claude/game-reload-automation",
+      "timestamp": "2026-04-04 22:54:35 +0000"
+    },
+    {
+      "hash": "61b55286b1c3bfcb814e1c9e0fdb22592ee63feb",
+      "message": "fix: SFTP write for autoload, fix writer leak in bridge poll, remove dead OnDestroy",
+      "timestamp": "2026-04-04 18:42:26 -0400"
+    },
+    {
+      "hash": "eefb37416e08fdcb9ba5d01be13b26cd17019fd9",
+      "message": "fix: SaveLoader guard + OnDestroy reset in BridgeTicker, reconnect loop in runner auto-reload",
+      "timestamp": "2026-04-04 18:39:04 -0400"
+    },
+    {
+      "hash": "d8b620076826892ecdfe0d167b81720c726d0283",
+      "message": "feat: add EpisodeReloader for automated game reset, --auto-reload flag in runner",
+      "timestamp": "2026-04-04 18:35:16 -0400"
+    },
+    {
+      "hash": "29b810ff7ccef3fd23134ed49d2997d6dddc70ce",
+      "message": "feat(mod): add AutoloadConfig one-shot save loader, wire into BridgeTicker",
+      "timestamp": "2026-04-04 18:35:13 -0400"
+    },
+    {
+      "hash": "c2670720269c4ff6ecd1f6cbba5aed239a3c9ca8",
+      "message": "feat: Phase 1 implementation — perimeter system, extended state, reward function, training config",
+      "timestamp": "2026-04-04 22:26:29 +0000"
+    },
+    {
+      "hash": "f08a59b62eee5c715f00be49900b4fa8debb10db",
+      "message": "fix: remove data/seeds/ from .gitignore — seed JSON files should be tracked",
+      "timestamp": "2026-04-04 18:22:33 -0400"
+    },
+    {
+      "hash": "074c66ac38388ac4c61b2cb1354d5313a10ff041",
+      "message": "chore: dashboard redesign complete — 6 tabs, LLM profiles, health strip",
+      "timestamp": "2026-04-04 18:17:54 -0400"
+    },
+    {
+      "hash": "ac22e9a9a670ee965977fd85521c39914781fc23",
+      "message": "refactor: runner start reads active LLM profile instead of GOOGLE_API_KEY env",
+      "timestamp": "2026-04-04 18:15:56 -0400"
+    },
+    {
+      "hash": "380c6f677701c61b5562bf1b40418b84e7c0a84a",
+      "message": "feat: wire reward and obligation data into colony health strip",
+      "timestamp": "2026-04-04 18:14:25 -0400"
+    },
+    {
+      "hash": "dcd29c3184b208d0b33908ef4b95c824a2298d21",
+      "message": "fix: fmtUptime floor seconds, cfgAddProfile chain selectProfile in promise",
+      "timestamp": "2026-04-04 18:13:52 -0400"
+    },
+    {
+      "hash": "739ebfa0502063df39600ca60af6fad3dfde77ea",
+      "message": "feat: dashboard Config tab — LLM profiles CRUD, game config, runner controls",
+      "timestamp": "2026-04-04 18:11:37 -0400"
+    },
+    {
+      "hash": "98ef723dd38fd9e866e29d90ccb215d5d6376465",
+      "message": "fix: log filter — sync all pills when All toggled on, hoist badge constants",
+      "timestamp": "2026-04-04 18:09:49 -0400"
+    },
+    {
+      "hash": "63356e36551be48d481fbce17ec28a6dbbafc52a",
+      "message": "feat: dashboard Log tab — feed with type filters, session stats, episode stats",
+      "timestamp": "2026-04-04 18:08:06 -0400"
+    },
+    {
+      "hash": "031ed8f412ddc8f8c3242de63341c0547b8631cc",
+      "message": "fix: guard peri.bounds against empty array",
+      "timestamp": "2026-04-04 18:06:38 -0400"
+    },
+    {
+      "hash": "e26b90f18c27dbe3b60504c1a77fccb1c39a4785",
+      "message": "feat: dashboard Perimeter tab — task board, reward tracking, history",
+      "timestamp": "2026-04-04 18:05:21 -0400"
+    },
+    {
+      "hash": "f0574055ed35dae24e98d7dfee04370199df98a2",
+      "message": "feat: dashboard Research tab — active research, icon grid, printing pod",
+      "timestamp": "2026-04-04 18:02:50 -0400"
+    },
+    {
+      "hash": "659140589cb6a446da2c5a888025245ba6e67b95",
+      "message": "refactor: hoist makeBar to module scope, document health unit normalization",
+      "timestamp": "2026-04-04 18:01:43 -0400"
+    },
+    {
+      "hash": "e9d37625ebf57df61e5ef04ba931724c6d94c295",
+      "message": "feat: dashboard Duplicants tab — bars, skills, traits, bionic charge",
+      "timestamp": "2026-04-04 17:59:59 -0400"
+    },
+    {
+      "hash": "ed3ff89c4c0386b84c75d4acd6e57d3cb3c2c8a8",
+      "message": "fix: colony tab hex colors, tile label dimensions, setSpeed payload",
+      "timestamp": "2026-04-04 17:58:35 -0400"
+    },
+    {
+      "hash": "9e02d6e8bfe500651dd437f0c98c61c400e4b73f",
+      "message": "feat: dashboard Colony tab — game card, resources, alerts, tile canvas",
+      "timestamp": "2026-04-04 17:56:44 -0400"
+    },
+    {
+      "hash": "0cb06961ec0acc323f56578c3e26f0ea2d5249f0",
+      "message": "feat: dashboard shell — status bar, 6 tabs, health strip, toolbar",
+      "timestamp": "2026-04-04 17:53:20 -0400"
+    },
+    {
+      "hash": "bb2485f45a0761c6fac35a44c2890204e44afd14",
+      "message": "fix: declare _runner_start_time global in start_runner and stop_runner, whitelist profile keys",
+      "timestamp": "2026-04-04 17:50:12 -0400"
+    },
+    {
+      "hash": "94588d46681c2074982e66f71013f223353081a1",
+      "message": "feat: add LLM profile management and config endpoints to dashboard server",
+      "timestamp": "2026-04-04 17:47:36 -0400"
+    },
+    {
+      "hash": "4b3fead3d93d0c693c86db7052e3ffa6315579af",
+      "message": "docs: update model catalog with vision models on Linux desktop",
+      "timestamp": "2026-04-04 17:42:40 -0400"
+    },
+    {
+      "hash": "b519ad2458faa00cd91e96f56865a3c182744685",
+      "message": "docs: add dashboard redesign implementation plan",
+      "timestamp": "2026-04-04 17:41:25 -0400"
+    },
+    {
+      "hash": "d1a021e48829669dce11559c55fa216717e2b469",
+      "message": "docs: add dashboard redesign spec and model catalog",
+      "timestamp": "2026-04-04 17:34:14 -0400"
+    },
+    {
+      "hash": "dbf9bdf43b950c839c69f588a88c4d0b76ac3c65",
+      "message": "feat: implement decompile-dependent features after Assembly-CSharp.dll verification",
+      "timestamp": "2026-04-04 16:32:56 -0400"
+    },
+    {
+      "hash": "1deb3108ba5b3b487029eda6a2d263c836cd639e",
+      "message": "feat: implement specs Phase 1 — perimeter system, extended state, reward function, training config",
+      "timestamp": "2026-04-04 16:18:32 -0400"
+    },
+    {
+      "hash": "a0a992492c01120106c304836ce0cc1dbbe1888a",
+      "message": "docs: infrastructure patches + model catalog",
+      "timestamp": "2026-04-04 22:08:49 +0000"
+    },
+    {
+      "hash": "7ea0a7bb93bc81c16d107e14ec93dab0ad7c2832",
+      "message": "docs: CLAUDE.md updates, basic SPOM blueprint, agent memory spec",
+      "timestamp": "2026-04-04 22:02:55 +0000"
+    },
+    {
+      "hash": "8ae24ced3e52e93f3858d8725d257eb2534d6672",
+      "message": "docs: policy & training pipeline spec",
+      "timestamp": "2026-04-04 21:48:26 +0000"
+    },
+    {
+      "hash": "362f7f641ba57950bea0613f3eeb423b97ee1efa",
+      "message": "docs: canonical training seed + game reload automation spec",
+      "timestamp": "2026-04-04 20:50:36 +0000"
+    },
+    {
+      "hash": "aeb28bf340600876e9add077d4b9a6cf65967cb9",
+      "message": "docs: patch action space — accept_print null guard + CLAUDE.md promotion note",
+      "timestamp": "2026-04-04 20:01:07 +0000"
+    },
+    {
+      "hash": "e5cd7c0be47ade19818aee7572ec52148f408212",
+      "message": "docs: add action space spec — assign_research, enable_building, accept_print",
+      "timestamp": "2026-04-04 19:58:41 +0000"
+    },
+    {
+      "hash": "f80dde57da431695abd74d3852c7417b4166cedc",
+      "message": "docs: patch specs from developer review + implementation order",
+      "timestamp": "2026-04-04 19:46:19 +0000"
+    },
+    {
+      "hash": "f71c8db1f830da7048991a3cc8b032f9f512efc1",
+      "message": "feat: brainstorm specs — perimeter system, game state schema, reward function, training config",
+      "timestamp": "2026-04-04 19:34:23 +0000"
+    },
+    {
+      "hash": "256db772efa5b3e13ae180428ce108603bf92728",
+      "message": "docs: add agent prompt guide covering system prompt design and known weaknesses",
+      "timestamp": "2026-04-04 14:37:39 -0400"
+    },
+    {
+      "hash": "54ccd43742feb5ba3f56db7249d9d748ac9b87c1",
+      "message": "docs: update CLAUDE.md to reflect live agent architecture, add first session log",
+      "timestamp": "2026-04-04 14:15:55 -0400"
+    },
+    {
+      "hash": "80ee4ccd674cf040440da0b5fc4434cd9b88b62f",
+      "message": "fix: guard against null GameClock/ClusterManager during world load, update deps",
+      "timestamp": "2026-04-04 14:14:49 -0400"
+    },
+    {
+      "hash": "cc05cf861623c857374dbc628d7e7bc3cd9f6a93",
+      "message": "feat: add Settings button to dashboard that opens in-game settings via xdotool",
+      "timestamp": "2026-04-04 14:10:26 -0400"
+    },
+    {
+      "hash": "0698ca0361de2654abad2499da06cbe24a928a21",
+      "message": "fix: 4 issues from final code review",
+      "timestamp": "2026-04-04 13:50:38 -0400"
+    },
+    {
+      "hash": "3545e8a7d2a7e9316fbad593eeafb13b996a5425",
+      "message": "fix: close SQLite connection in _search_wiki and log wiki call limit",
+      "timestamp": "2026-04-04 13:48:05 -0400"
+    },
+    {
+      "hash": "3e1a0f4070b91f9c9903fe0c0b94f91891b89bbf",
+      "message": "fix: apply 4 code quality fixes from review",
+      "timestamp": "2026-04-04 13:45:56 -0400"
+    },
+    {
+      "hash": "8fb049efd43fe5b35b6ad5d595386d353b79765f",
+      "message": "feat: add wiki tool calling to GeminiAgent with multi-turn loop",
+      "timestamp": "2026-04-04 13:42:43 -0400"
+    },
+    {
+      "hash": "80fd6ce70fed2f48e9fc7ebdabf828a605e990f3",
+      "message": "feat: add ONI wiki scraper and build data/wiki.db (gitignored)",
+      "timestamp": "2026-04-04 13:39:23 -0400"
+    },
+    {
+      "hash": "a97482834154698aef3ec6a14a37c8c931070cd6",
+      "message": "feat: serialize tile window (element + mass) in state payload",
+      "timestamp": "2026-04-04 13:39:10 -0400"
+    },
+    {
+      "hash": "3f26889249308c536f3acab2d8e3298a346c4591",
+      "message": "feat: add speed controls and settings button to dashboard toolbar",
+      "timestamp": "2026-04-04 13:38:33 -0400"
+    },
+    {
+      "hash": "3dd7474a87151d3d6ba0e14f698c7e0f71d4e712",
+      "message": "feat: handle set_speed action in ActionExecutor via SpeedControlScreen",
+      "timestamp": "2026-04-04 13:37:37 -0400"
+    },
+    {
+      "hash": "24bdd903846fd5998c41be7d684772fb7ea5561c",
+      "message": "feat: add tile window summary to Gemini prompt",
+      "timestamp": "2026-04-04 13:35:35 -0400"
+    },
+    {
+      "hash": "3bf3c3c57afcb97b0f5f3ee55f671a07ccbc2a9c",
+      "message": "feat: add Speed field to ActionCommand for set_speed action",
+      "timestamp": "2026-04-04 13:34:58 -0400"
+    },
+    {
+      "hash": "ffdd5991806adc2876a5f6be217e14d67e0e6c4f",
+      "message": "test: remove duplicate test_build_unknown_action_raises (covered by test_build_action_rejects_unknown)",
+      "timestamp": "2026-04-04 13:34:34 -0400"
+    },
+    {
+      "hash": "64b6867ecb3296e174330e6588915df34092d664",
+      "message": "feat: add set_speed to protocol VALID_ACTIONS",
+      "timestamp": "2026-04-04 13:33:37 -0400"
+    },
+    {
+      "hash": "f19b5c232b1f4ed4e8a812fc5358dad521138950",
+      "message": "docs: add implementation plans for grid vision + wiki tool calling and dashboard speed controls",
+      "timestamp": "2026-04-04 13:32:43 -0400"
+    },
+    {
+      "hash": "caa87014c02f0a19044e4b80fd10841e886b5900",
+      "message": "docs: add design specs for grid vision + wiki tool calling and dashboard speed controls",
+      "timestamp": "2026-04-04 13:29:30 -0400"
+    },
+    {
+      "hash": "967d7ffde92c3592c279e9947321f59ed5f19753",
+      "message": "feat: merge live ONI environment, dashboard, and action verification scripts",
+      "timestamp": "2026-04-04 11:52:06 -0400"
+    },
+    {
+      "hash": "f9fc620557233c19662ea9f621e4250af10950ec",
+      "message": "feat: Python stub agent with protocol parsing and TCP client",
+      "timestamp": "2026-04-04 01:43:48 -0400"
+    },
+    {
+      "hash": "09d40fba03ff5e31e128bcec2260450aff402be0",
+      "message": "fix: register DigPlacer in grid and use KDestroyGameObject on cancel",
+      "timestamp": "2026-04-04 01:41:53 -0400"
+    },
+    {
+      "hash": "0cb04d4dad03e9d823bbd0c797a326e0c680f422",
+      "message": "feat: implement ActionExecutor with real ONI build/dig/priority APIs",
+      "timestamp": "2026-04-04 01:40:30 -0400"
+    },
+    {
+      "hash": "37cefe64b72061f8187fe53f0850e6b6676c710e",
+      "message": "docs: clarify StateSerializer API limitations in comments",
+      "timestamp": "2026-04-04 01:31:44 -0400"
+    },
+    {
+      "hash": "5cb105c44ee0e0b43ed631c49681130dcb023731",
+      "message": "feat: implement StateSerializer with real ONI game APIs (Task 4)",
+      "timestamp": "2026-04-04 01:30:16 -0400"
+    },
+    {
+      "hash": "eaa79bf639854e9467d2098ae89f88991337e4ee",
+      "message": "feat: add ACK message type and SendAck to BridgeServer",
+      "timestamp": "2026-04-04 01:23:00 -0400"
+    },
+    {
+      "hash": "aa9ea79cd48c25ae8233473e405e530e7df6bb2c",
+      "message": "build: ONIBridge mod compiles against net471 game DLLs",
+      "timestamp": "2026-04-04 01:21:48 -0400"
+    },
+    {
+      "hash": "18a4e1043404d2d8181854fa68319ed3338d7795",
+      "message": "chore: extend lib gitignore and add setup README",
+      "timestamp": "2026-04-04 01:20:17 -0400"
+    },
+    {
+      "hash": "d0c85e7d4c20a34f6633a2956455aa50ea76ec02",
+      "message": "chore: gitignore game DLLs in mod/lib",
+      "timestamp": "2026-04-04 01:15:58 -0400"
+    },
+    {
+      "hash": "dc1249668344c3bd8c5441c9a65fe4a95761b0da",
+      "message": "docs: add Phase 1 implementation plan for ONIBridge mod + stub agent",
+      "timestamp": "2026-04-04 01:14:25 -0400"
+    },
+    {
+      "hash": "605f79ce9b7100b1182b75043c553b5b1a66dd30",
+      "message": "feat: Add ONIBridge mod scaffold and design spec",
+      "timestamp": "2026-04-04 01:10:34 -0400"
+    },
+    {
+      "hash": "79beac07dc04036ed4459677f8fde9d4c638db90",
+      "message": "cleanup: add .gitignore, remove node_modules and debug logs from tracking",
+      "timestamp": "2026-02-08 21:20:03 -0500"
+    },
+    {
+      "hash": "dc6cf13cc392065b25e3198050708e920e1fa6c4",
+      "message": "feat: Implement Hierarchical Planning Architecture (Task 5.1)",
+      "timestamp": "2025-12-25 22:10:38 -0500"
+    },
+    {
+      "hash": "ff1498b6d4081d0457a4678b3b8244f7ddb04206",
+      "message": "feat: Implement Mini-ONI Objective System (Task 2.2)",
+      "timestamp": "2025-12-24 01:01:04 -0500"
+    }
+  ],
+  "activity": [
+    {
+      "hash": "86b887c6b44f06b130f93abf0b3a6fcc3d9d05bf",
+      "message": "feat: C# mod multi-zone PerimeterManager, zones[] state field, id-targeted abandon",
+      "timestamp": "2026-04-05 00:57:18 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "66a90b3765ceb3f5592d941537d1d1b7c472ea48",
+      "message": "fix: bump base-camp-v1 min_size to 12x8 to satisfy 1-tile padding rule",
+      "timestamp": "2026-04-05 00:55:56 -0400",
+      "type": "fix"
+    },
+    {
+      "hash": "11aeb38c6cb0276fa564b49b1c504925436b4cf1",
+      "message": "feat: update system prompt for multi-zone perimeter — id, priority, new min sizes",
+      "timestamp": "2026-04-05 00:55:34 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "22e9037cb388f21356497e363727dff20021390f",
+      "message": "feat: runner multi-zone autocomplete loop and validate_place pre-flight",
+      "timestamp": "2026-04-05 00:54:18 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "fcb7d95fbf7fdd0338e8c92b4954c07e80f0541e",
+      "message": "feat: add id+priority to build_place_perimeter, zone_id to build_abandon_perimeter",
+      "timestamp": "2026-04-05 00:53:16 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "8da21a9286e88a55a59df2443cbd80386302211a",
+      "message": "fix: guard against duplicate auto-complete archive on back-to-back ticks",
+      "timestamp": "2026-04-05 00:51:40 -0400",
+      "type": "fix"
+    },
+    {
+      "hash": "412d62f8f93ddc0ff5c49b392dff50a21e4e8fb2",
+      "message": "feat: replace single-zone SpatialLedger with multi-zone ActiveZone + validate_place",
+      "timestamp": "2026-04-05 00:49:00 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "e51c243a9a9e5a003f06f35b0138534680261a59",
+      "message": "docs: spatial perimeter system v2 implementation plan",
+      "timestamp": "2026-04-05 00:39:22 -0400",
+      "type": "docs"
+    },
+    {
+      "hash": "a7c6def536b16caeb598fde38b4262e96dd233e9",
+      "message": "docs: spatial perimeter system v2 spec — multi-zone, priority ordering, edge math fix",
+      "timestamp": "2026-04-05 00:33:18 -0400",
+      "type": "docs"
+    },
+    {
+      "hash": "33cb36236cb42486134cbf64050c0301170e853c",
+      "message": "fix: expand prompt preview to 3000 chars, increase pl-pre max-height to 400px",
+      "timestamp": "2026-04-04 22:20:36 -0400",
+      "type": "fix"
+    },
+    {
+      "hash": "9a4d56568781c2be9a742bdea0d1e68e0c7e984f",
+      "message": "feat: add Restart/Stop runner buttons to persistent status bar",
+      "timestamp": "2026-04-04 22:18:35 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "66a1d4a924181f19b63628b530d41176b7084cd6",
+      "message": "feat: add starting-buildings reference table to system prompt (Telepad, RationBox, etc.)",
+      "timestamp": "2026-04-04 22:13:55 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "118981db8ab0e5007c048619193f953150190aed",
+      "message": "fix: tag spawned buildings in prompt, fix false food-source warning when RationBox present",
+      "timestamp": "2026-04-04 22:12:47 -0400",
+      "type": "fix"
+    },
+    {
+      "hash": "9b478fe84391d5370cf1ec9941a3ede563421916",
+      "message": "docs: add building telemetry prompt fix implementation plan",
+      "timestamp": "2026-04-04 22:08:30 -0400",
+      "type": "docs"
+    },
+    {
+      "hash": "808265b66a4e9ffd4f4cf9efeba18c7ff943658b",
+      "message": "docs: add building telemetry prompt fix spec",
+      "timestamp": "2026-04-04 22:07:24 -0400",
+      "type": "docs"
+    },
+    {
+      "hash": "5b16141e891f0dcc9058124d764a568c730a9f4e",
+      "message": "docs: observability spec + NeMo Gym integration spec",
+      "timestamp": "2026-04-05 01:53:23 +0000",
+      "type": "docs"
+    },
+    {
+      "hash": "ef83d5c6c4da192cc85ea579cb9ba44fb1870441",
+      "message": "fix: pipeline tab - compound tick+cycle key, neutral badge for missing validation, JSON fallback guard",
+      "timestamp": "2026-04-04 21:38:56 -0400",
+      "type": "fix"
+    },
+    {
+      "hash": "cc15e360ac9adc31e63b0310138c6e4e31bf6f5f",
+      "message": "feat: add Pipeline inspector tab to dashboard with tick feed and stage detail",
+      "timestamp": "2026-04-04 21:36:21 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "eb94cea98b1a52b5ff48d3ab2c40b4b13771010f",
+      "message": "feat: server.py stores and relays pipeline snapshots to browser clients",
+      "timestamp": "2026-04-04 21:29:12 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "75cb467c659237d6323a2bf58f1846fb32dd5f63",
+      "message": "fix: capture dig coords before candidate reassignment in validation chain",
+      "timestamp": "2026-04-04 21:28:23 -0400",
+      "type": "fix"
+    },
+    {
+      "hash": "3e0943cb15a2891a814cd225d5c6f686378a4df0",
+      "message": "feat: add PipelineSnapshot to runner, broadcast pipeline message per tick",
+      "timestamp": "2026-04-04 21:25:17 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "248d074beeb4a6e1d85198d825282dd8f5731e13",
+      "message": "fix: add non-noop action test, unquote tuple type annotation in decide()",
+      "timestamp": "2026-04-04 21:22:55 -0400",
+      "type": "fix"
+    },
+    {
+      "hash": "7f75ad57353f0ae1bb4017fcb61c40774b0c57fd",
+      "message": "feat: decide() returns (action, prompt, raw_response) tuple for pipeline inspector",
+      "timestamp": "2026-04-04 21:20:51 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "49f017cadb00c55c11690234c2716f44bf348425",
+      "message": "docs: pipeline inspector spec and implementation plan",
+      "timestamp": "2026-04-04 21:19:30 -0400",
+      "type": "docs"
+    },
+    {
+      "hash": "6b868f7e36509d64c27653c6325e701657512479",
+      "message": "feat: add dig coordinate validation to block LLM hallucinated open-cell digs",
+      "timestamp": "2026-04-04 20:40:21 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "808eec9a2adfa08a55f97e7ffdc389f10ad39e95",
+      "message": "feat: wire game acks into LLM prompt as feedback",
+      "timestamp": "2026-04-04 20:32:55 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "464601ce853ce80b6e23060c116eb078f1a11c6f",
+      "message": "fix: don't assume not-in-window dig cells are solid, log warning",
+      "timestamp": "2026-04-04 20:29:19 -0400",
+      "type": "fix"
+    },
+    {
+      "hash": "81920fc695fde44c7f8dd5851f82675a015c642c",
+      "message": "fix: replace tile aggregate summary with per-cell solid tile list",
+      "timestamp": "2026-04-04 20:26:23 -0400",
+      "type": "fix"
+    },
+    {
+      "hash": "7b43e553294bf4ce685c62e663447d14887fdb11",
+      "message": "fix: replace misleading speed labels with chevrons",
+      "timestamp": "2026-04-04 20:25:06 -0400",
+      "type": "fix"
+    },
+    {
+      "hash": "aa07f4b0855d72723ed922e43561082f28d1f75c",
+      "message": "fix: prevent abandon_perimeter flood when no blueprint matched",
+      "timestamp": "2026-04-04 20:19:16 -0400",
+      "type": "fix"
+    },
+    {
+      "hash": "5a81784bf61e972d2e1e6f25ac1f4ef9b4244777",
+      "message": "fix: handle no-blueprint perimeter — auto-abandon and tell LLM correct sizes",
+      "timestamp": "2026-04-04 20:16:36 -0400",
+      "type": "fix"
+    },
+    {
+      "hash": "1dd951d10397867083d0545d60c200c67bfef4fe",
+      "message": "feat: richer dashboard log + runner.log file output",
+      "timestamp": "2026-04-04 20:13:39 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "d6ece67cb975d7e01959ced879b7a6193bb6f624",
+      "message": "fix: flip tile canvas vertically to match ONI coordinate system",
+      "timestamp": "2026-04-04 20:11:27 -0400",
+      "type": "fix"
+    },
+    {
+      "hash": "654f50273d009c5b2fe5183e466605ff8010586a",
+      "message": "fix: center tile window on dupes when no buildings exist",
+      "timestamp": "2026-04-04 20:03:29 -0400",
+      "type": "fix"
+    },
+    {
+      "hash": "996bdc01bc58ecd103a0e9c6eb1485bb37760808",
+      "message": "fix: hard-block place_perimeter in runner when perimeter is already active",
+      "timestamp": "2026-04-04 19:55:00 -0400",
+      "type": "fix"
+    },
+    {
+      "hash": "658e35d39240151c20726139a94592eb9b841949",
+      "message": "fix: run LLM call in thread executor, reduce dedup TTL",
+      "timestamp": "2026-04-04 19:51:38 -0400",
+      "type": "fix"
+    },
+    {
+      "hash": "5a17bf102a8c4ecb5db76c087e847238b6f7b24d",
+      "message": "fix: evict stale state from send queue instead of dropping all",
+      "timestamp": "2026-04-04 19:47:26 -0400",
+      "type": "fix"
+    },
+    {
+      "hash": "491c24cd46e6f6f6d5fb3c9fefa447a69cea9c69",
+      "message": "fix: prevent game freeze and stale state burst",
+      "timestamp": "2026-04-04 19:41:59 -0400",
+      "type": "fix"
+    },
+    {
+      "hash": "0352395013115ce55180cf96bcf908ca80de52f4",
+      "message": "feat: default LLM profiles (DGX-A, DGX-B, Gemini) in dashboard, --endpoint/--model wired through runner",
+      "timestamp": "2026-04-04 19:30:17 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "4fb92f6fc56e9172162447d91ed4c18a8d08b744",
+      "message": "refactor: swap google-genai for openai-compatible client, wire --endpoint and --model through runner",
+      "timestamp": "2026-04-04 19:29:52 -0400",
+      "type": "commit"
+    },
+    {
+      "hash": "3de6b62dae760111f536ab46d39f4061ebd96bd2",
+      "message": "fix: task board now emits dig tasks before build tasks for uncleared cells",
+      "timestamp": "2026-04-04 19:05:28 -0400",
+      "type": "fix"
+    },
+    {
+      "hash": "b42e31be09d30373f16a3d2e04ffaac61d39119b",
+      "message": "Merge pull request #10 from husky2466-codo/claude/game-reload-automation",
+      "timestamp": "2026-04-04 22:54:35 +0000",
+      "type": "commit"
+    },
+    {
+      "hash": "61b55286b1c3bfcb814e1c9e0fdb22592ee63feb",
+      "message": "fix: SFTP write for autoload, fix writer leak in bridge poll, remove dead OnDestroy",
+      "timestamp": "2026-04-04 18:42:26 -0400",
+      "type": "fix"
+    },
+    {
+      "hash": "eefb37416e08fdcb9ba5d01be13b26cd17019fd9",
+      "message": "fix: SaveLoader guard + OnDestroy reset in BridgeTicker, reconnect loop in runner auto-reload",
+      "timestamp": "2026-04-04 18:39:04 -0400",
+      "type": "fix"
+    },
+    {
+      "hash": "d8b620076826892ecdfe0d167b81720c726d0283",
+      "message": "feat: add EpisodeReloader for automated game reset, --auto-reload flag in runner",
+      "timestamp": "2026-04-04 18:35:16 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "29b810ff7ccef3fd23134ed49d2997d6dddc70ce",
+      "message": "feat(mod): add AutoloadConfig one-shot save loader, wire into BridgeTicker",
+      "timestamp": "2026-04-04 18:35:13 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "c2670720269c4ff6ecd1f6cbba5aed239a3c9ca8",
+      "message": "feat: Phase 1 implementation — perimeter system, extended state, reward function, training config",
+      "timestamp": "2026-04-04 22:26:29 +0000",
+      "type": "feat"
+    },
+    {
+      "hash": "f08a59b62eee5c715f00be49900b4fa8debb10db",
+      "message": "fix: remove data/seeds/ from .gitignore — seed JSON files should be tracked",
+      "timestamp": "2026-04-04 18:22:33 -0400",
+      "type": "fix"
+    },
+    {
+      "hash": "074c66ac38388ac4c61b2cb1354d5313a10ff041",
+      "message": "chore: dashboard redesign complete — 6 tabs, LLM profiles, health strip",
+      "timestamp": "2026-04-04 18:17:54 -0400",
+      "type": "commit"
+    },
+    {
+      "hash": "ac22e9a9a670ee965977fd85521c39914781fc23",
+      "message": "refactor: runner start reads active LLM profile instead of GOOGLE_API_KEY env",
+      "timestamp": "2026-04-04 18:15:56 -0400",
+      "type": "commit"
+    },
+    {
+      "hash": "380c6f677701c61b5562bf1b40418b84e7c0a84a",
+      "message": "feat: wire reward and obligation data into colony health strip",
+      "timestamp": "2026-04-04 18:14:25 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "dcd29c3184b208d0b33908ef4b95c824a2298d21",
+      "message": "fix: fmtUptime floor seconds, cfgAddProfile chain selectProfile in promise",
+      "timestamp": "2026-04-04 18:13:52 -0400",
+      "type": "fix"
+    },
+    {
+      "hash": "739ebfa0502063df39600ca60af6fad3dfde77ea",
+      "message": "feat: dashboard Config tab — LLM profiles CRUD, game config, runner controls",
+      "timestamp": "2026-04-04 18:11:37 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "98ef723dd38fd9e866e29d90ccb215d5d6376465",
+      "message": "fix: log filter — sync all pills when All toggled on, hoist badge constants",
+      "timestamp": "2026-04-04 18:09:49 -0400",
+      "type": "fix"
+    },
+    {
+      "hash": "63356e36551be48d481fbce17ec28a6dbbafc52a",
+      "message": "feat: dashboard Log tab — feed with type filters, session stats, episode stats",
+      "timestamp": "2026-04-04 18:08:06 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "031ed8f412ddc8f8c3242de63341c0547b8631cc",
+      "message": "fix: guard peri.bounds against empty array",
+      "timestamp": "2026-04-04 18:06:38 -0400",
+      "type": "fix"
+    },
+    {
+      "hash": "e26b90f18c27dbe3b60504c1a77fccb1c39a4785",
+      "message": "feat: dashboard Perimeter tab — task board, reward tracking, history",
+      "timestamp": "2026-04-04 18:05:21 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "f0574055ed35dae24e98d7dfee04370199df98a2",
+      "message": "feat: dashboard Research tab — active research, icon grid, printing pod",
+      "timestamp": "2026-04-04 18:02:50 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "659140589cb6a446da2c5a888025245ba6e67b95",
+      "message": "refactor: hoist makeBar to module scope, document health unit normalization",
+      "timestamp": "2026-04-04 18:01:43 -0400",
+      "type": "commit"
+    },
+    {
+      "hash": "e9d37625ebf57df61e5ef04ba931724c6d94c295",
+      "message": "feat: dashboard Duplicants tab — bars, skills, traits, bionic charge",
+      "timestamp": "2026-04-04 17:59:59 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "ed3ff89c4c0386b84c75d4acd6e57d3cb3c2c8a8",
+      "message": "fix: colony tab hex colors, tile label dimensions, setSpeed payload",
+      "timestamp": "2026-04-04 17:58:35 -0400",
+      "type": "fix"
+    },
+    {
+      "hash": "9e02d6e8bfe500651dd437f0c98c61c400e4b73f",
+      "message": "feat: dashboard Colony tab — game card, resources, alerts, tile canvas",
+      "timestamp": "2026-04-04 17:56:44 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "0cb06961ec0acc323f56578c3e26f0ea2d5249f0",
+      "message": "feat: dashboard shell — status bar, 6 tabs, health strip, toolbar",
+      "timestamp": "2026-04-04 17:53:20 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "bb2485f45a0761c6fac35a44c2890204e44afd14",
+      "message": "fix: declare _runner_start_time global in start_runner and stop_runner, whitelist profile keys",
+      "timestamp": "2026-04-04 17:50:12 -0400",
+      "type": "fix"
+    },
+    {
+      "hash": "94588d46681c2074982e66f71013f223353081a1",
+      "message": "feat: add LLM profile management and config endpoints to dashboard server",
+      "timestamp": "2026-04-04 17:47:36 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "4b3fead3d93d0c693c86db7052e3ffa6315579af",
+      "message": "docs: update model catalog with vision models on Linux desktop",
+      "timestamp": "2026-04-04 17:42:40 -0400",
+      "type": "docs"
+    },
+    {
+      "hash": "b519ad2458faa00cd91e96f56865a3c182744685",
+      "message": "docs: add dashboard redesign implementation plan",
+      "timestamp": "2026-04-04 17:41:25 -0400",
+      "type": "docs"
+    },
+    {
+      "hash": "d1a021e48829669dce11559c55fa216717e2b469",
+      "message": "docs: add dashboard redesign spec and model catalog",
+      "timestamp": "2026-04-04 17:34:14 -0400",
+      "type": "docs"
+    },
+    {
+      "hash": "dbf9bdf43b950c839c69f588a88c4d0b76ac3c65",
+      "message": "feat: implement decompile-dependent features after Assembly-CSharp.dll verification",
+      "timestamp": "2026-04-04 16:32:56 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "1deb3108ba5b3b487029eda6a2d263c836cd639e",
+      "message": "feat: implement specs Phase 1 — perimeter system, extended state, reward function, training config",
+      "timestamp": "2026-04-04 16:18:32 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "a0a992492c01120106c304836ce0cc1dbbe1888a",
+      "message": "docs: infrastructure patches + model catalog",
+      "timestamp": "2026-04-04 22:08:49 +0000",
+      "type": "docs"
+    },
+    {
+      "hash": "7ea0a7bb93bc81c16d107e14ec93dab0ad7c2832",
+      "message": "docs: CLAUDE.md updates, basic SPOM blueprint, agent memory spec",
+      "timestamp": "2026-04-04 22:02:55 +0000",
+      "type": "docs"
+    },
+    {
+      "hash": "8ae24ced3e52e93f3858d8725d257eb2534d6672",
+      "message": "docs: policy & training pipeline spec",
+      "timestamp": "2026-04-04 21:48:26 +0000",
+      "type": "docs"
+    },
+    {
+      "hash": "362f7f641ba57950bea0613f3eeb423b97ee1efa",
+      "message": "docs: canonical training seed + game reload automation spec",
+      "timestamp": "2026-04-04 20:50:36 +0000",
+      "type": "docs"
+    },
+    {
+      "hash": "aeb28bf340600876e9add077d4b9a6cf65967cb9",
+      "message": "docs: patch action space — accept_print null guard + CLAUDE.md promotion note",
+      "timestamp": "2026-04-04 20:01:07 +0000",
+      "type": "docs"
+    },
+    {
+      "hash": "e5cd7c0be47ade19818aee7572ec52148f408212",
+      "message": "docs: add action space spec — assign_research, enable_building, accept_print",
+      "timestamp": "2026-04-04 19:58:41 +0000",
+      "type": "docs"
+    },
+    {
+      "hash": "f80dde57da431695abd74d3852c7417b4166cedc",
+      "message": "docs: patch specs from developer review + implementation order",
+      "timestamp": "2026-04-04 19:46:19 +0000",
+      "type": "docs"
+    },
+    {
+      "hash": "f71c8db1f830da7048991a3cc8b032f9f512efc1",
+      "message": "feat: brainstorm specs — perimeter system, game state schema, reward function, training config",
+      "timestamp": "2026-04-04 19:34:23 +0000",
+      "type": "feat"
+    },
+    {
+      "hash": "256db772efa5b3e13ae180428ce108603bf92728",
+      "message": "docs: add agent prompt guide covering system prompt design and known weaknesses",
+      "timestamp": "2026-04-04 14:37:39 -0400",
+      "type": "docs"
+    },
+    {
+      "hash": "54ccd43742feb5ba3f56db7249d9d748ac9b87c1",
+      "message": "docs: update CLAUDE.md to reflect live agent architecture, add first session log",
+      "timestamp": "2026-04-04 14:15:55 -0400",
+      "type": "docs"
+    },
+    {
+      "hash": "80ee4ccd674cf040440da0b5fc4434cd9b88b62f",
+      "message": "fix: guard against null GameClock/ClusterManager during world load, update deps",
+      "timestamp": "2026-04-04 14:14:49 -0400",
+      "type": "fix"
+    },
+    {
+      "hash": "cc05cf861623c857374dbc628d7e7bc3cd9f6a93",
+      "message": "feat: add Settings button to dashboard that opens in-game settings via xdotool",
+      "timestamp": "2026-04-04 14:10:26 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "0698ca0361de2654abad2499da06cbe24a928a21",
+      "message": "fix: 4 issues from final code review",
+      "timestamp": "2026-04-04 13:50:38 -0400",
+      "type": "fix"
+    },
+    {
+      "hash": "3545e8a7d2a7e9316fbad593eeafb13b996a5425",
+      "message": "fix: close SQLite connection in _search_wiki and log wiki call limit",
+      "timestamp": "2026-04-04 13:48:05 -0400",
+      "type": "fix"
+    },
+    {
+      "hash": "3e1a0f4070b91f9c9903fe0c0b94f91891b89bbf",
+      "message": "fix: apply 4 code quality fixes from review",
+      "timestamp": "2026-04-04 13:45:56 -0400",
+      "type": "fix"
+    },
+    {
+      "hash": "8fb049efd43fe5b35b6ad5d595386d353b79765f",
+      "message": "feat: add wiki tool calling to GeminiAgent with multi-turn loop",
+      "timestamp": "2026-04-04 13:42:43 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "80fd6ce70fed2f48e9fc7ebdabf828a605e990f3",
+      "message": "feat: add ONI wiki scraper and build data/wiki.db (gitignored)",
+      "timestamp": "2026-04-04 13:39:23 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "a97482834154698aef3ec6a14a37c8c931070cd6",
+      "message": "feat: serialize tile window (element + mass) in state payload",
+      "timestamp": "2026-04-04 13:39:10 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "3f26889249308c536f3acab2d8e3298a346c4591",
+      "message": "feat: add speed controls and settings button to dashboard toolbar",
+      "timestamp": "2026-04-04 13:38:33 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "3dd7474a87151d3d6ba0e14f698c7e0f71d4e712",
+      "message": "feat: handle set_speed action in ActionExecutor via SpeedControlScreen",
+      "timestamp": "2026-04-04 13:37:37 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "24bdd903846fd5998c41be7d684772fb7ea5561c",
+      "message": "feat: add tile window summary to Gemini prompt",
+      "timestamp": "2026-04-04 13:35:35 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "3bf3c3c57afcb97b0f5f3ee55f671a07ccbc2a9c",
+      "message": "feat: add Speed field to ActionCommand for set_speed action",
+      "timestamp": "2026-04-04 13:34:58 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "ffdd5991806adc2876a5f6be217e14d67e0e6c4f",
+      "message": "test: remove duplicate test_build_unknown_action_raises (covered by test_build_action_rejects_unknown)",
+      "timestamp": "2026-04-04 13:34:34 -0400",
+      "type": "test"
+    },
+    {
+      "hash": "64b6867ecb3296e174330e6588915df34092d664",
+      "message": "feat: add set_speed to protocol VALID_ACTIONS",
+      "timestamp": "2026-04-04 13:33:37 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "f19b5c232b1f4ed4e8a812fc5358dad521138950",
+      "message": "docs: add implementation plans for grid vision + wiki tool calling and dashboard speed controls",
+      "timestamp": "2026-04-04 13:32:43 -0400",
+      "type": "docs"
+    },
+    {
+      "hash": "caa87014c02f0a19044e4b80fd10841e886b5900",
+      "message": "docs: add design specs for grid vision + wiki tool calling and dashboard speed controls",
+      "timestamp": "2026-04-04 13:29:30 -0400",
+      "type": "docs"
+    },
+    {
+      "hash": "967d7ffde92c3592c279e9947321f59ed5f19753",
+      "message": "feat: merge live ONI environment, dashboard, and action verification scripts",
+      "timestamp": "2026-04-04 11:52:06 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "f9fc620557233c19662ea9f621e4250af10950ec",
+      "message": "feat: Python stub agent with protocol parsing and TCP client",
+      "timestamp": "2026-04-04 01:43:48 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "09d40fba03ff5e31e128bcec2260450aff402be0",
+      "message": "fix: register DigPlacer in grid and use KDestroyGameObject on cancel",
+      "timestamp": "2026-04-04 01:41:53 -0400",
+      "type": "fix"
+    },
+    {
+      "hash": "0cb04d4dad03e9d823bbd0c797a326e0c680f422",
+      "message": "feat: implement ActionExecutor with real ONI build/dig/priority APIs",
+      "timestamp": "2026-04-04 01:40:30 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "37cefe64b72061f8187fe53f0850e6b6676c710e",
+      "message": "docs: clarify StateSerializer API limitations in comments",
+      "timestamp": "2026-04-04 01:31:44 -0400",
+      "type": "docs"
+    },
+    {
+      "hash": "5cb105c44ee0e0b43ed631c49681130dcb023731",
+      "message": "feat: implement StateSerializer with real ONI game APIs (Task 4)",
+      "timestamp": "2026-04-04 01:30:16 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "eaa79bf639854e9467d2098ae89f88991337e4ee",
+      "message": "feat: add ACK message type and SendAck to BridgeServer",
+      "timestamp": "2026-04-04 01:23:00 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "aa9ea79cd48c25ae8233473e405e530e7df6bb2c",
+      "message": "build: ONIBridge mod compiles against net471 game DLLs",
+      "timestamp": "2026-04-04 01:21:48 -0400",
+      "type": "commit"
+    },
+    {
+      "hash": "18a4e1043404d2d8181854fa68319ed3338d7795",
+      "message": "chore: extend lib gitignore and add setup README",
+      "timestamp": "2026-04-04 01:20:17 -0400",
+      "type": "commit"
+    },
+    {
+      "hash": "d0c85e7d4c20a34f6633a2956455aa50ea76ec02",
+      "message": "chore: gitignore game DLLs in mod/lib",
+      "timestamp": "2026-04-04 01:15:58 -0400",
+      "type": "commit"
+    },
+    {
+      "hash": "dc1249668344c3bd8c5441c9a65fe4a95761b0da",
+      "message": "docs: add Phase 1 implementation plan for ONIBridge mod + stub agent",
+      "timestamp": "2026-04-04 01:14:25 -0400",
+      "type": "docs"
+    },
+    {
+      "hash": "605f79ce9b7100b1182b75043c553b5b1a66dd30",
+      "message": "feat: Add ONIBridge mod scaffold and design spec",
+      "timestamp": "2026-04-04 01:10:34 -0400",
+      "type": "feat"
+    },
+    {
+      "hash": "79beac07dc04036ed4459677f8fde9d4c638db90",
+      "message": "cleanup: add .gitignore, remove node_modules and debug logs from tracking",
+      "timestamp": "2026-02-08 21:20:03 -0500",
+      "type": "commit"
+    },
+    {
+      "hash": "dc6cf13cc392065b25e3198050708e920e1fa6c4",
+      "message": "feat: Implement Hierarchical Planning Architecture (Task 5.1)",
+      "timestamp": "2025-12-25 22:10:38 -0500",
+      "type": "feat"
+    },
+    {
+      "hash": "ff1498b6d4081d0457a4678b3b8244f7ddb04206",
+      "message": "feat: Implement Mini-ONI Objective System (Task 2.2)",
+      "timestamp": "2025-12-24 01:01:04 -0500",
+      "type": "feat"
+    }
+  ],
+  "phases": [
+    {
+      "name": "Setup",
+      "status": "done",
+      "taskCount": 0,
+      "doneCount": 0
+    },
+    {
+      "name": "Core",
+      "status": "active",
+      "taskCount": 0,
+      "doneCount": 0
+    },
+    {
+      "name": "Integration",
+      "status": "pending",
+      "taskCount": 0,
+      "doneCount": 0
+    },
+    {
+      "name": "Polish",
+      "status": "pending",
+      "taskCount": 0,
+      "doneCount": 0
+    }
+  ],
+  "tasks": [],
+  "currentPhase": "Core"
+}
